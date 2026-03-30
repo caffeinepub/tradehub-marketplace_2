@@ -22,6 +22,7 @@ interface ProductGridProps {
   onBuyNow: (product: Product) => void;
   onViewReviews: (product: Product) => void;
   onViewSeller: (seller: Principal) => void;
+  onProductClick: (product: Product) => void;
   sellerRatingsMap: Map<
     string,
     { avg: number; count: number; isVerified: boolean }
@@ -38,6 +39,7 @@ export default function ProductGrid({
   onBuyNow,
   onViewReviews,
   onViewSeller,
+  onProductClick,
   sellerRatingsMap,
   minSellerRating,
   onMinSellerRatingChange,
@@ -124,6 +126,7 @@ export default function ProductGrid({
               onViewSeller={() =>
                 product.seller && onViewSeller(product.seller)
               }
+              onProductClick={() => onProductClick(product)}
               isVerifiedSeller={
                 sellerRatingsMap.get(product.seller.toString())?.isVerified ??
                 false

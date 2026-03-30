@@ -13,6 +13,7 @@ import LiveSupportChat from "./components/LiveSupportChat";
 import MyListings from "./components/MyListings";
 import NavBar from "./components/NavBar";
 import ProductChatModal from "./components/ProductChatModal";
+import ProductDetailPage from "./components/ProductDetailPage";
 import ProductGrid from "./components/ProductGrid";
 import ReviewModal from "./components/ReviewModal";
 import ReviewsPanel from "./components/ReviewsPanel";
@@ -193,6 +194,7 @@ export default function App() {
   const [showMyListings, setShowMyListings] = useState(false);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [showSellerInbox, setShowSellerInbox] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [chatProduct, setChatProduct] = useState<Product | null>(null);
   const [reviewProduct, setReviewProduct] = useState<Product | null>(null);
   const [reviewsPanelProduct, setReviewsPanelProduct] =
@@ -284,6 +286,7 @@ export default function App() {
           setShowMyListings(true);
           setShowAdminPanel(false);
           setShowSellerInbox(false);
+          setSelectedProduct(null);
         }}
         onMessagesClick={
           identity
@@ -291,6 +294,7 @@ export default function App() {
                 setShowSellerInbox(true);
                 setShowMyListings(false);
                 setShowAdminPanel(false);
+                setSelectedProduct(null);
               }
             : undefined
         }
@@ -299,6 +303,7 @@ export default function App() {
           setShowAdminPanel(true);
           setShowMyListings(false);
           setShowSellerInbox(false);
+          setSelectedProduct(null);
         }}
       />
       <NavBar onSellClick={handleSellClick} />
@@ -324,6 +329,20 @@ export default function App() {
               setShowSellerInbox(false);
               setReviewProduct(product);
             }}
+          />
+        </main>
+      ) : selectedProduct ? (
+        <main>
+          <ProductDetailPage
+            product={selectedProduct}
+            onBack={() => setSelectedProduct(null)}
+            onBuyNow={(product) => setChatProduct(product)}
+            onViewReviews={(product) => setReviewsPanelProduct(product)}
+            onViewSeller={(seller) => setSellerProfilePrincipal(seller)}
+            isVerifiedSeller={
+              sellerRatingsMap.get(selectedProduct.seller.toString())
+                ?.isVerified ?? false
+            }
           />
         </main>
       ) : (
@@ -356,6 +375,7 @@ export default function App() {
                 onBuyNow={(product) => setChatProduct(product)}
                 onViewReviews={(product) => setReviewsPanelProduct(product)}
                 onViewSeller={(seller) => setSellerProfilePrincipal(seller)}
+                onProductClick={(product) => setSelectedProduct(product)}
                 sellerRatingsMap={sellerRatingsMap}
                 minSellerRating={minSellerRating}
                 onMinSellerRatingChange={(r) => {

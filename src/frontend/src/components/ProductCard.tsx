@@ -34,6 +34,7 @@ interface ProductCardProps {
   onViewReviews: () => void;
   onViewSeller: () => void;
   isVerifiedSeller: boolean;
+  onProductClick: () => void;
 }
 
 export default function ProductCard({
@@ -43,6 +44,7 @@ export default function ProductCard({
   onViewReviews,
   onViewSeller,
   isVerifiedSeller,
+  onProductClick,
 }: ProductCardProps) {
   const [wishlisted, setWishlisted] = useState(false);
   const { data: reviews = [] } = useReviews(product.id);
@@ -56,7 +58,8 @@ export default function ProductCard({
   const categoryLabel = CATEGORY_LABELS[categoryKey] ?? "";
   const categoryColor = CATEGORY_COLORS[categoryKey] ?? "bg-muted-foreground";
 
-  const handleWishlist = () => {
+  const handleWishlist = (e: React.MouseEvent) => {
+    e.stopPropagation();
     const next = !wishlisted;
     setWishlisted(next);
     if (next) {
@@ -74,7 +77,8 @@ export default function ProductCard({
       }}
       whileHover={{ y: -6, scale: 1.018 }}
       transition={{ type: "spring", stiffness: 300, damping: 25 }}
-      className="bg-white rounded-xl border border-border shadow-xs hover:shadow-card-hover transition-shadow duration-300 overflow-hidden group cursor-default"
+      onClick={onProductClick}
+      className="bg-white rounded-xl border border-border shadow-xs hover:shadow-card-hover transition-shadow duration-300 overflow-hidden group cursor-pointer"
       data-ocid={`products.item.${index}`}
     >
       <div className="relative aspect-square overflow-hidden bg-muted">
@@ -111,7 +115,9 @@ export default function ProductCard({
           data-ocid="products.toggle"
         >
           <Heart
-            className={`w-4 h-4 transition-colors ${wishlisted ? "fill-red-500 text-red-500" : "text-muted-foreground"}`}
+            className={`w-4 h-4 transition-colors ${
+              wishlisted ? "fill-red-500 text-red-500" : "text-muted-foreground"
+            }`}
           />
         </button>
       </div>
@@ -119,7 +125,10 @@ export default function ProductCard({
       <div className="p-4">
         <button
           type="button"
-          onClick={onViewSeller}
+          onClick={(e) => {
+            e.stopPropagation();
+            onViewSeller();
+          }}
           className="inline-flex items-center gap-1 text-xs text-primary hover:underline mb-1.5 truncate max-w-full text-left"
           data-ocid="products.seller_link"
         >
@@ -158,7 +167,10 @@ export default function ProductCard({
         </div>
         <button
           type="button"
-          onClick={onViewReviews}
+          onClick={(e) => {
+            e.stopPropagation();
+            onViewReviews();
+          }}
           className="text-xs text-primary hover:underline mb-2.5 block"
           data-ocid="products.link"
         >
@@ -170,7 +182,10 @@ export default function ProductCard({
         <div className="flex gap-2">
           <Button
             size="sm"
-            onClick={onBuyNow}
+            onClick={(e) => {
+              e.stopPropagation();
+              onBuyNow();
+            }}
             disabled={product.isSold}
             className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90 rounded-full text-xs font-semibold"
             data-ocid="products.primary_button"
@@ -181,6 +196,7 @@ export default function ProductCard({
             size="sm"
             variant="outline"
             disabled={product.isSold}
+            onClick={(e) => e.stopPropagation()}
             className="flex-1 rounded-full text-xs border-primary text-primary hover:bg-secondary"
             data-ocid="products.secondary_button"
           >

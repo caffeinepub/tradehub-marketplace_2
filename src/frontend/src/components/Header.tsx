@@ -46,18 +46,18 @@ export default function Header({
 
   return (
     <header className="bg-white border-b border-border sticky top-0 z-40 shadow-xs">
-      <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center gap-4">
+      <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 h-24 flex items-center gap-4">
         {/* Logo */}
         <div
-          className="flex items-center gap-2 shrink-0 select-none"
+          className="flex items-center gap-3 shrink-0 select-none"
           data-ocid="nav.link"
         >
           <img
             src="/assets/generated/tradehub-logo-transparent.dim_200x200.png"
             alt="TradeHub logo"
-            className="w-8 h-8 object-contain"
+            className="w-20 h-20 object-contain"
           />
-          <span className="font-bold text-xl text-foreground tracking-tight leading-none">
+          <span className="font-bold text-3xl text-foreground tracking-tight leading-none">
             TradeHub
           </span>
         </div>
