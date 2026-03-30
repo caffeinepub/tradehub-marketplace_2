@@ -17,6 +17,7 @@ import ProductGrid from "./components/ProductGrid";
 import ReviewModal from "./components/ReviewModal";
 import ReviewsPanel from "./components/ReviewsPanel";
 import SellModal from "./components/SellModal";
+import SellerInbox from "./components/SellerInbox";
 import SellerProfilePanel from "./components/SellerProfilePanel";
 import { useActor } from "./hooks/useActor";
 import { useInternetIdentity } from "./hooks/useInternetIdentity";
@@ -191,6 +192,7 @@ export default function App() {
   const [showSellModal, setShowSellModal] = useState(false);
   const [showMyListings, setShowMyListings] = useState(false);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
+  const [showSellerInbox, setShowSellerInbox] = useState(false);
   const [chatProduct, setChatProduct] = useState<Product | null>(null);
   const [reviewProduct, setReviewProduct] = useState<Product | null>(null);
   const [reviewsPanelProduct, setReviewsPanelProduct] =
@@ -266,14 +268,38 @@ export default function App() {
     });
   };
 
+  // Navigate away from inbox/listings/admin when identity is lost
+  useEffect(() => {
+    if (!identity) {
+      setShowSellerInbox(false);
+    }
+  }, [identity]);
+
   return (
     <div className="min-h-screen bg-background">
       <Header
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
-        onMyListingsClick={() => setShowMyListings(true)}
+        onMyListingsClick={() => {
+          setShowMyListings(true);
+          setShowAdminPanel(false);
+          setShowSellerInbox(false);
+        }}
+        onMessagesClick={
+          identity
+            ? () => {
+                setShowSellerInbox(true);
+                setShowMyListings(false);
+                setShowAdminPanel(false);
+              }
+            : undefined
+        }
         isAdmin={isAdmin}
-        onAdminClick={() => setShowAdminPanel(true)}
+        onAdminClick={() => {
+          setShowAdminPanel(true);
+          setShowMyListings(false);
+          setShowSellerInbox(false);
+        }}
       />
       <NavBar onSellClick={handleSellClick} />
 
@@ -288,6 +314,17 @@ export default function App() {
       ) : showMyListings ? (
         <main>
           <MyListings onBack={() => setShowMyListings(false)} />
+        </main>
+      ) : showSellerInbox ? (
+        <main>
+          <SellerInbox
+            onBack={() => setShowSellerInbox(false)}
+            identity={identity}
+            onLeaveReview={(product) => {
+              setShowSellerInbox(false);
+              setReviewProduct(product);
+            }}
+          />
         </main>
       ) : (
         <main>
@@ -336,6 +373,7 @@ export default function App() {
 
       <SellModal open={showSellModal} onClose={() => setShowSellModal(false)} />
 
+      {/* Buy Now chat — auto-messages and skips name entry when authenticated */}
       {chatProduct && (
         <ProductChatModal
           product={chatProduct}
@@ -344,6 +382,8 @@ export default function App() {
             setChatProduct(null);
             setReviewProduct(product);
           }}
+          identity={identity}
+          fromBuyNow={true}
         />
       )}
 

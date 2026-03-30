@@ -14,6 +14,7 @@ import {
   LayoutList,
   LogIn,
   LogOut,
+  MessageSquare,
   Search,
   Settings,
   ShoppingCart,
@@ -24,6 +25,8 @@ interface HeaderProps {
   searchQuery: string;
   onSearchChange: (val: string) => void;
   onMyListingsClick: () => void;
+  onMessagesClick?: () => void;
+  hasMessages?: boolean;
   isAdmin?: boolean;
   onAdminClick?: () => void;
 }
@@ -32,6 +35,8 @@ export default function Header({
   searchQuery,
   onSearchChange,
   onMyListingsClick,
+  onMessagesClick,
+  hasMessages = false,
   isAdmin,
   onAdminClick,
 }: HeaderProps) {
@@ -96,18 +101,23 @@ export default function Header({
                   className="flex items-center gap-2 cursor-pointer focus:outline-none ml-1"
                   data-ocid="header.open_modal_button"
                 >
-                  <Avatar className="w-8 h-8 ring-2 ring-transparent hover:ring-primary/40 transition-all">
-                    <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">
-                      {shortId.toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
+                  <div className="relative">
+                    <Avatar className="w-8 h-8 ring-2 ring-transparent hover:ring-primary/40 transition-all">
+                      <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">
+                        {shortId.toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    {hasMessages && (
+                      <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-red-500 border-2 border-white" />
+                    )}
+                  </div>
                   <span className="text-sm font-medium text-foreground hidden sm:block">
                     {shortId}…
                   </span>
                   <ChevronDown className="w-3 h-3 text-muted-foreground hidden sm:block" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuContent align="end" className="w-48">
                 <DropdownMenuItem
                   onClick={onMyListingsClick}
                   className="cursor-pointer"
@@ -116,6 +126,19 @@ export default function Header({
                   <LayoutList className="w-4 h-4 mr-2" />
                   My Listings
                 </DropdownMenuItem>
+                {onMessagesClick && (
+                  <DropdownMenuItem
+                    onClick={onMessagesClick}
+                    className="cursor-pointer"
+                    data-ocid="header.link"
+                  >
+                    <MessageSquare className="w-4 h-4 mr-2" />
+                    <span className="flex-1">Messages</span>
+                    {hasMessages && (
+                      <span className="w-2 h-2 rounded-full bg-red-500 ml-1" />
+                    )}
+                  </DropdownMenuItem>
+                )}
                 {isAdmin && onAdminClick && (
                   <>
                     <DropdownMenuSeparator />
