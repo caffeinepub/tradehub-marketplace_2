@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
 import {
   Select,
   SelectContent,
@@ -33,12 +34,14 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   ArrowLeft,
   CheckCircle2,
+  ImagePlus,
   Loader2,
   PackageOpen,
   Pencil,
   Trash2,
+  X,
 } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import type { Product } from "../hooks/useQueries";
 import {
@@ -48,6 +51,7 @@ import {
   useMyProducts,
   useUpdateProduct,
 } from "../hooks/useQueries";
+import { useStorageClient } from "../hooks/useStorageClient";
 
 const CATEGORY_LABELS: Record<string, string> = {
   electronics: "Electronics",
@@ -84,6 +88,8 @@ interface EditDialogProps {
 
 function EditDialog({ product, idx }: EditDialogProps) {
   const updateProduct = useUpdateProduct();
+  const storageClient = useStorageClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState(product.title);
   const [description, setDescription] = useState(product.description);
@@ -93,7 +99,10 @@ function EditDialog({ product, idx }: EditDialogProps) {
   const [category, setCategory] = useState<string>(
     getCategoryKey(product.category),
   );
-  const [imageUrl, setImageUrl] = useState(product.imageUrl);
+  const [newImageFile, setNewImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
 
   const handleOpen = (isOpen: boolean) => {
     if (isOpen) {
@@ -101,14 +110,61 @@ function EditDialog({ product, idx }: EditDialogProps) {
       setDescription(product.description);
       setPriceStr((Number(product.price) / 100).toFixed(2));
       setCategory(getCategoryKey(product.category));
-      setImageUrl(product.imageUrl);
+      setNewImageFile(null);
+      if (imagePreview) URL.revokeObjectURL(imagePreview);
+      setImagePreview(null);
+      setUploadProgress(0);
     }
     setOpen(isOpen);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setNewImageFile(file);
+    if (imagePreview) URL.revokeObjectURL(imagePreview);
+    setImagePreview(URL.createObjectURL(file));
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLElement>) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files?.[0];
+    if (!file || !file.type.startsWith("image/")) return;
+    setNewImageFile(file);
+    if (imagePreview) URL.revokeObjectURL(imagePreview);
+    setImagePreview(URL.createObjectURL(file));
+  };
+
+  const clearNewImage = () => {
+    setNewImageFile(null);
+    if (imagePreview) URL.revokeObjectURL(imagePreview);
+    setImagePreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleSave = async () => {
     const priceCents = BigInt(Math.round(Number.parseFloat(priceStr) * 100));
     const cat = { [category]: null } as unknown as ProductCategory;
+    let resolvedImageUrl = product.imageUrl;
+
+    if (newImageFile && storageClient) {
+      try {
+        setIsUploading(true);
+        setUploadProgress(0);
+        const bytes = new Uint8Array(await newImageFile.arrayBuffer());
+        const { hash } = await storageClient.putFile(bytes, (pct) =>
+          setUploadProgress(pct),
+        );
+        resolvedImageUrl = await storageClient.getDirectURL(hash);
+      } catch {
+        toast.error("Image upload failed");
+        setIsUploading(false);
+        return;
+      } finally {
+        setIsUploading(false);
+      }
+    }
+
     try {
       await updateProduct.mutateAsync({
         id: product.id,
@@ -116,7 +172,7 @@ function EditDialog({ product, idx }: EditDialogProps) {
         description: description.trim(),
         price: priceCents,
         category: cat,
-        imageUrl: imageUrl.trim(),
+        imageUrl: resolvedImageUrl,
       });
       toast.success("Listing updated!");
       setOpen(false);
@@ -124,6 +180,9 @@ function EditDialog({ product, idx }: EditDialogProps) {
       toast.error("Failed to update listing");
     }
   };
+
+  const isPending = isUploading || updateProduct.isPending;
+  const displayPreview = imagePreview ?? product.imageUrl;
 
   return (
     <Dialog open={open} onOpenChange={handleOpen}>
@@ -189,13 +248,50 @@ function EditDialog({ product, idx }: EditDialogProps) {
             </Select>
           </div>
           <div className="grid gap-1.5">
-            <Label htmlFor="edit-image">Image URL</Label>
-            <Input
-              id="edit-image"
-              value={imageUrl}
-              onChange={(e) => setImageUrl(e.target.value)}
-              data-ocid="mylistings.input"
+            <Label>Product Image</Label>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleFileChange}
+              id="edit-image-input"
+              data-ocid="mylistings.upload_button"
             />
+            <div className="relative rounded-lg overflow-hidden border border-border">
+              <img
+                src={displayPreview}
+                alt="Product preview"
+                className="w-full h-40 object-cover"
+              />
+              {newImageFile && (
+                <button
+                  type="button"
+                  onClick={clearNewImage}
+                  className="absolute top-2 right-2 bg-black/60 hover:bg-black/80 text-white rounded-full p-1 transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+              {isUploading && (
+                <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center gap-2 px-6">
+                  <p className="text-white text-sm font-medium">
+                    Uploading… {uploadProgress}%
+                  </p>
+                  <Progress value={uploadProgress} className="w-full h-2" />
+                </div>
+              )}
+              <label
+                htmlFor="edit-image-input"
+                onDrop={handleDrop}
+                onDragOver={(e) => e.preventDefault()}
+                className="absolute bottom-0 left-0 right-0 bg-black/40 hover:bg-black/60 transition-colors flex items-center justify-center gap-2 py-2 cursor-pointer"
+                data-ocid="mylistings.dropzone"
+              >
+                <ImagePlus className="w-4 h-4 text-white" />
+                <span className="text-white text-xs">Replace image</span>
+              </label>
+            </div>
           </div>
         </div>
         <DialogFooter>
@@ -208,13 +304,17 @@ function EditDialog({ product, idx }: EditDialogProps) {
           </Button>
           <Button
             onClick={handleSave}
-            disabled={updateProduct.isPending || !title.trim()}
+            disabled={isPending || !title.trim()}
             data-ocid="mylistings.save_button"
           >
-            {updateProduct.isPending ? (
+            {isPending ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : null}
-            {updateProduct.isPending ? "Saving..." : "Save Changes"}
+            {isUploading
+              ? `Uploading… ${uploadProgress}%`
+              : updateProduct.isPending
+                ? "Saving..."
+                : "Save Changes"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -354,7 +454,6 @@ export default function MyListings({ onBack }: MyListingsProps) {
                 <p className="text-xs text-muted-foreground line-clamp-2">
                   {product.description}
                 </p>
-
                 <div className="flex gap-2 mt-auto pt-2">
                   {!product.isSold ? (
                     <Button
@@ -371,9 +470,7 @@ export default function MyListings({ onBack }: MyListingsProps) {
                   ) : (
                     <div className="flex-1" />
                   )}
-
                   <EditDialog product={product} idx={idx} />
-
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button
@@ -389,7 +486,7 @@ export default function MyListings({ onBack }: MyListingsProps) {
                       <AlertDialogHeader>
                         <AlertDialogTitle>Delete listing?</AlertDialogTitle>
                         <AlertDialogDescription>
-                          This will permanently remove “{product.title}” from
+                          This will permanently remove "{product.title}" from
                           the marketplace. This action cannot be undone.
                         </AlertDialogDescription>
                       </AlertDialogHeader>

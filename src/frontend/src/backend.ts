@@ -489,6 +489,105 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async addReview(arg0: bigint, arg1: bigint, arg2: string): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.addReview(arg0, arg1, arg2);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.addReview(arg0, arg1, arg2);
+            return result;
+        }
+    }
+    async getReviewsByProduct(arg0: bigint): Promise<Array<import("./backend.d").Review>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getReviewsByProduct(arg0);
+                return result as any;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getReviewsByProduct(arg0);
+            return result as any;
+        }
+    }
+    async deleteProduct(arg0: bigint): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.deleteProduct(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.deleteProduct(arg0);
+            return result;
+        }
+    }
+    async getMyProducts(): Promise<Array<Product>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getMyProducts();
+                return from_candid_vec_n12(this._uploadFile, this._downloadFile, result);
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getMyProducts();
+            return from_candid_vec_n12(this._uploadFile, this._downloadFile, result);
+        }
+    }
+    async updateProduct(arg0: bigint, arg1: string, arg2: string, arg3: bigint, arg4: ProductCategory, arg5: string): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.updateProduct(arg0, arg1, arg2, arg3, to_candid_ProductCategory_n10(this._uploadFile, this._downloadFile, arg4), arg5);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.updateProduct(arg0, arg1, arg2, arg3, to_candid_ProductCategory_n10(this._uploadFile, this._downloadFile, arg4), arg5);
+            return result;
+        }
+    }
+    async setSellerVerified(arg0: import("@icp-sdk/core/principal").Principal, arg1: boolean): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.setSellerVerified(arg0, arg1);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.setSellerVerified(arg0, arg1);
+            return result;
+        }
+    }
+    async getManuallyVerifiedSellers(): Promise<Array<import("@icp-sdk/core/principal").Principal>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getManuallyVerifiedSellers();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getManuallyVerifiedSellers();
+            return result;
+        }
+    }
+
 }
 function from_candid_ProductCategory_n15(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _ProductCategory): ProductCategory {
     return from_candid_variant_n16(_uploadFile, _downloadFile, value);

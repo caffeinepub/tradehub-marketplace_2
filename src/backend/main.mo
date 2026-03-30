@@ -6,6 +6,7 @@ import List "mo:core/List";
 import Order "mo:core/Order";
 import Runtime "mo:core/Runtime";
 import Map "mo:core/Map";
+import Set "mo:core/Set";
 import Principal "mo:core/Principal";
 import MixinStorage "blob-storage/Mixin";
 import MixinAuthorization "authorization/MixinAuthorization";
@@ -238,6 +239,24 @@ actor {
       case (null) { [] };
       case (?list) { list.toArray() };
     };
+  };
+
+  // Verified Sellers (manual admin override)
+  let manuallyVerifiedSellers = Set.empty<Principal>();
+
+  public shared ({ caller }) func setSellerVerified(seller : Principal, verified : Bool) : async () {
+    if (not AccessControl.isAdmin(accessControlState, caller)) {
+      Runtime.trap("Unauthorized: Only admins can set verified status");
+    };
+    if (verified) {
+      manuallyVerifiedSellers.add(seller);
+    } else {
+      manuallyVerifiedSellers.remove(seller);
+    };
+  };
+
+  public query func getManuallyVerifiedSellers() : async [Principal] {
+    manuallyVerifiedSellers.toArray();
   };
 
   // Chat

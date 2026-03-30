@@ -29,7 +29,11 @@ const BLOG_POSTS = [
   },
 ];
 
-export default function BottomContent() {
+interface BottomContentProps {
+  onSellClick: () => void;
+}
+
+export default function BottomContent({ onSellClick }: BottomContentProps) {
   return (
     <section className="py-10 grid lg:grid-cols-3 gap-6">
       {/* Start Selling Promo */}
@@ -51,6 +55,7 @@ export default function BottomContent() {
           </p>
         </div>
         <Button
+          onClick={onSellClick}
           className="mt-4 bg-white text-primary hover:bg-white/90 rounded-full font-semibold w-fit"
           data-ocid="promo.primary_button"
         >

@@ -42,7 +42,7 @@ export default function NavBar({ onSellClick }: NavBarProps) {
         <Button
           size="sm"
           onClick={onSellClick}
-          className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-full text-xs px-4 font-semibold"
+          className="bg-gradient-to-r from-primary to-blue-500 text-primary-foreground hover:opacity-90 rounded-full text-xs px-5 font-semibold shadow-card transition-opacity"
           data-ocid="nav.primary_button"
         >
           <Tag className="w-3 h-3 mr-1" />

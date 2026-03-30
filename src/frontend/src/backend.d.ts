@@ -75,4 +75,6 @@ export interface backendInterface {
     sendSupportMessage(sender: string, text: string): Promise<void>;
     addReview(productId: bigint, rating: bigint, comment: string): Promise<void>;
     getReviewsByProduct(productId: bigint): Promise<Array<Review>>;
+    setSellerVerified(seller: Principal, verified: boolean): Promise<void>;
+    getManuallyVerifiedSellers(): Promise<Array<Principal>>;
 }

@@ -1,12 +1,31 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Heart, ShoppingCart, Star } from "lucide-react";
+import { Heart, ShieldCheck, ShoppingCart, Star } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
+import { toast } from "sonner";
 import type { Product } from "../hooks/useQueries";
-import { useReviews } from "../hooks/useQueries";
+import { ProductCategory, useReviews } from "../hooks/useQueries";
 
 const STARS = [1, 2, 3, 4, 5];
+
+const CATEGORY_LABELS: Record<string, string> = {
+  [ProductCategory.electronics as unknown as string]: "Electronics",
+  [ProductCategory.fashion as unknown as string]: "Fashion",
+  [ProductCategory.home as unknown as string]: "Home",
+  [ProductCategory.sports as unknown as string]: "Sports",
+  [ProductCategory.hobbies as unknown as string]: "Hobbies",
+  [ProductCategory.autos as unknown as string]: "Autos",
+};
+
+const CATEGORY_COLORS: Record<string, string> = {
+  [ProductCategory.electronics as unknown as string]: "bg-blue-600",
+  [ProductCategory.fashion as unknown as string]: "bg-pink-600",
+  [ProductCategory.home as unknown as string]: "bg-orange-500",
+  [ProductCategory.sports as unknown as string]: "bg-green-600",
+  [ProductCategory.hobbies as unknown as string]: "bg-purple-600",
+  [ProductCategory.autos as unknown as string]: "bg-red-600",
+};
 
 interface ProductCardProps {
   product: Product;
@@ -14,6 +33,7 @@ interface ProductCardProps {
   onBuyNow: () => void;
   onViewReviews: () => void;
   onViewSeller: () => void;
+  isVerifiedSeller: boolean;
 }
 
 export default function ProductCard({
@@ -22,6 +42,7 @@ export default function ProductCard({
   onBuyNow,
   onViewReviews,
   onViewSeller,
+  isVerifiedSeller,
 }: ProductCardProps) {
   const [wishlisted, setWishlisted] = useState(false);
   const { data: reviews = [] } = useReviews(product.id);
@@ -31,13 +52,29 @@ export default function ProductCard({
       : 0;
   const price = Number(product.price) / 100;
 
+  const categoryKey = product.category as unknown as string;
+  const categoryLabel = CATEGORY_LABELS[categoryKey] ?? "";
+  const categoryColor = CATEGORY_COLORS[categoryKey] ?? "bg-muted-foreground";
+
+  const handleWishlist = () => {
+    const next = !wishlisted;
+    setWishlisted(next);
+    if (next) {
+      toast.success("Added to wishlist!");
+    } else {
+      toast.info("Removed from wishlist");
+    }
+  };
+
   return (
     <motion.div
       variants={{
         hidden: { opacity: 0, y: 16 },
         visible: { opacity: 1, y: 0 },
       }}
-      className="bg-white rounded-xl border border-border shadow-xs hover:shadow-card-hover transition-shadow duration-300 overflow-hidden group"
+      whileHover={{ y: -6, scale: 1.018 }}
+      transition={{ type: "spring", stiffness: 300, damping: 25 }}
+      className="bg-white rounded-xl border border-border shadow-xs hover:shadow-card-hover transition-shadow duration-300 overflow-hidden group cursor-default"
       data-ocid={`products.item.${index}`}
     >
       <div className="relative aspect-square overflow-hidden bg-muted">
@@ -50,6 +87,16 @@ export default function ProductCard({
               "https://placehold.co/400x400/EEF5FB/1E73E8?text=No+Image";
           }}
         />
+
+        {/* Category badge */}
+        {categoryLabel && (
+          <span
+            className={`absolute top-2 left-2 text-[10px] font-bold text-white px-2 py-0.5 rounded-full ${categoryColor} shadow-sm`}
+          >
+            {categoryLabel}
+          </span>
+        )}
+
         {product.isSold && (
           <div className="absolute inset-0 bg-foreground/50 flex items-center justify-center">
             <Badge className="bg-destructive text-destructive-foreground text-sm font-bold px-4 py-1.5">
@@ -59,29 +106,37 @@ export default function ProductCard({
         )}
         <button
           type="button"
-          onClick={() => setWishlisted((w) => !w)}
+          onClick={handleWishlist}
           className="absolute top-2 right-2 w-8 h-8 rounded-full bg-white/90 backdrop-blur flex items-center justify-center shadow-xs transition-transform hover:scale-110"
           data-ocid="products.toggle"
         >
           <Heart
-            className={`w-4 h-4 ${wishlisted ? "fill-red-500 text-red-500" : "text-muted-foreground"}`}
+            className={`w-4 h-4 transition-colors ${wishlisted ? "fill-red-500 text-red-500" : "text-muted-foreground"}`}
           />
         </button>
       </div>
 
-      <div className="p-3">
+      <div className="p-4">
         <button
           type="button"
           onClick={onViewSeller}
-          className="text-xs text-primary hover:underline mb-1 block truncate max-w-full text-left"
+          className="inline-flex items-center gap-1 text-xs text-primary hover:underline mb-1.5 truncate max-w-full text-left"
           data-ocid="products.seller_link"
         >
-          {product.seller?.toString().slice(0, 8) ?? "Seller"}…
+          <span className="truncate">
+            {product.seller?.toString().slice(0, 8) ?? "Seller"}…
+          </span>
+          {isVerifiedSeller && (
+            <span className="inline-flex items-center gap-0.5 ml-0.5 bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full flex-shrink-0">
+              <ShieldCheck className="w-3 h-3" />
+              <span className="text-[10px] font-semibold">Verified</span>
+            </span>
+          )}
         </button>
-        <h3 className="text-sm font-semibold text-foreground line-clamp-2 mb-1">
+        <h3 className="text-sm font-bold text-foreground line-clamp-2 mb-1.5">
           {product.title}
         </h3>
-        <div className="flex items-center gap-1 mb-0.5">
+        <div className="flex items-center gap-0.5 mb-0.5">
           {STARS.map((s) => (
             <Star
               key={s}
@@ -104,12 +159,12 @@ export default function ProductCard({
         <button
           type="button"
           onClick={onViewReviews}
-          className="text-xs text-primary hover:underline mb-2 block"
+          className="text-xs text-primary hover:underline mb-2.5 block"
           data-ocid="products.link"
         >
           {reviews.length > 0 ? "See all reviews" : "Be the first to review"}
         </button>
-        <div className="text-base font-bold text-foreground mb-3">
+        <div className="text-lg font-bold text-foreground mb-3">
           ${price.toFixed(2)}
         </div>
         <div className="flex gap-2">

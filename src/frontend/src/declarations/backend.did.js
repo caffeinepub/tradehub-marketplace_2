@@ -89,6 +89,8 @@ export const idlService = IDL.Service({
   'sendSupportMessage' : IDL.Func([IDL.Text, IDL.Text], [], []),
   'addReview' : IDL.Func([IDL.Nat, IDL.Nat, IDL.Text], [], []),
   'getReviewsByProduct' : IDL.Func([IDL.Nat], [IDL.Vec(Review)], ['query']),
+  'setSellerVerified' : IDL.Func([IDL.Principal, IDL.Bool], [], []),
+  'getManuallyVerifiedSellers' : IDL.Func([], [IDL.Vec(IDL.Principal)], ['query']),
 });
 
 export const idlInitArgs = [];
@@ -135,6 +137,8 @@ export const idlFactory = ({ IDL }) => {
     'sendSupportMessage' : IDL.Func([IDL.Text, IDL.Text], [], []),
     'addReview' : IDL.Func([IDL.Nat, IDL.Nat, IDL.Text], [], []),
     'getReviewsByProduct' : IDL.Func([IDL.Nat], [IDL.Vec(Review)], ['query']),
+    'setSellerVerified' : IDL.Func([IDL.Principal, IDL.Bool], [], []),
+    'getManuallyVerifiedSellers' : IDL.Func([], [IDL.Vec(IDL.Principal)], ['query']),
   });
 };
 

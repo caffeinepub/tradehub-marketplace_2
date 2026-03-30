@@ -8,7 +8,13 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { Principal } from "@icp-sdk/core/principal";
-import { ShoppingCart, Star, Store, UserCircle2 } from "lucide-react";
+import {
+  ShieldCheck,
+  ShoppingCart,
+  Star,
+  Store,
+  UserCircle2,
+} from "lucide-react";
 import { motion } from "motion/react";
 import type { Product } from "../hooks/useQueries";
 import { useAllProducts, useReviews } from "../hooks/useQueries";
@@ -87,6 +93,7 @@ interface SellerProfilePanelProps {
   open: boolean;
   onClose: () => void;
   onBuyNow: (product: Product) => void;
+  sellerStats?: { avg: number; count: number; isVerified: boolean };
 }
 
 export default function SellerProfilePanel({
@@ -94,6 +101,7 @@ export default function SellerProfilePanel({
   open,
   onClose,
   onBuyNow,
+  sellerStats,
 }: SellerProfilePanelProps) {
   const { data: allProducts = [] } = useAllProducts();
 
@@ -127,6 +135,25 @@ export default function SellerProfilePanel({
             <p className="text-xs text-muted-foreground font-mono mt-0.5">
               {sellerIdShort}
             </p>
+            {sellerStats?.isVerified && (
+              <div className="flex items-center gap-1 mt-0.5">
+                <ShieldCheck className="w-3.5 h-3.5 text-blue-500" />
+                <span className="text-xs font-medium text-blue-500">
+                  Verified Seller
+                </span>
+              </div>
+            )}
+            {sellerStats && sellerStats.count > 0 && (
+              <div className="flex items-center gap-1 mt-0.5">
+                <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />
+                <span className="text-xs font-semibold text-foreground">
+                  {sellerStats.avg.toFixed(1)}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  ({sellerStats.count} reviews)
+                </span>
+              </div>
+            )}
           </div>
           <div className="flex flex-col items-end gap-0.5">
             <div className="flex items-center gap-1">

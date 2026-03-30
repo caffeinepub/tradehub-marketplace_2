@@ -5,6 +5,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, MessageCircle, Send, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
+import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import { useSendSupportMessage, useSupportMessages } from "../hooks/useQueries";
 
 export default function LiveSupportChat() {
@@ -13,6 +15,7 @@ export default function LiveSupportChat() {
   const [message, setMessage] = useState("");
   const [nameSet, setNameSet] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const { identity } = useInternetIdentity();
 
   const { data: messages = [], isLoading } = useSupportMessages();
   const sendMessage = useSendSupportMessage();
@@ -26,8 +29,19 @@ export default function LiveSupportChat() {
 
   const handleSend = async () => {
     if (!message.trim() || !senderName.trim()) return;
-    await sendMessage.mutateAsync({ sender: senderName, text: message.trim() });
-    setMessage("");
+    if (!identity) {
+      toast.error("Please sign in to use support chat");
+      return;
+    }
+    try {
+      await sendMessage.mutateAsync({
+        sender: senderName,
+        text: message.trim(),
+      });
+      setMessage("");
+    } catch {
+      toast.error("Please sign in to use support chat");
+    }
   };
 
   return (

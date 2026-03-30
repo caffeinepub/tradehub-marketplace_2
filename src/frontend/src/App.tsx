@@ -1,8 +1,9 @@
 import { Toaster } from "@/components/ui/sonner";
 import type { Principal } from "@icp-sdk/core/principal";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { UserRole } from "./backend.d";
+import AdminPanel from "./components/AdminPanel";
 import BottomContent from "./components/BottomContent";
 import CategoryPicks from "./components/CategoryPicks";
 import Footer from "./components/Footer";
@@ -21,6 +22,7 @@ import { useActor } from "./hooks/useActor";
 import { useInternetIdentity } from "./hooks/useInternetIdentity";
 import {
   ProductCategory,
+  useAllProductReviews,
   useAllProducts,
   useCreateProduct,
 } from "./hooks/useQueries";
@@ -34,7 +36,7 @@ const SAMPLE_PRODUCTS = [
     price: 29900n,
     category: ProductCategory.electronics,
     imageUrl:
-      "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400",
+      "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400",
     sellerId: "Alice M.",
   },
   {
@@ -91,7 +93,7 @@ const SAMPLE_PRODUCTS = [
     price: 5900n,
     category: ProductCategory.hobbies,
     imageUrl:
-      "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400",
+      "https://images.unsplash.com/photo-1587654780291-39c9404d746b?w=400",
     sellerId: "Grace H.",
   },
   {
@@ -100,7 +102,7 @@ const SAMPLE_PRODUCTS = [
       "Genuine brown leather motorcycle jacket, size M. 90s classic, barely worn.",
     price: 18500n,
     category: ProductCategory.fashion,
-    imageUrl: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400",
+    imageUrl: "https://images.unsplash.com/photo-1551028719-00167b16eac5?w=400",
     sellerId: "Henry P.",
   },
   {
@@ -109,7 +111,7 @@ const SAMPLE_PRODUCTS = [
       "Cordless vacuum with laser dust detection and HEPA filtration. 60-min runtime.",
     price: 64900n,
     category: ProductCategory.home,
-    imageUrl: "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=400",
+    imageUrl: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400",
     sellerId: "Iris W.",
   },
   {
@@ -119,7 +121,7 @@ const SAMPLE_PRODUCTS = [
     price: 18900n,
     category: ProductCategory.sports,
     imageUrl:
-      "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400",
+      "https://images.unsplash.com/photo-1617083934555-ac56ed1c3118?w=400",
     sellerId: "Jack M.",
   },
 ];
@@ -130,12 +132,65 @@ export default function App() {
   const { data: products = [], isLoading: productsLoading } = useAllProducts();
   const createProduct = useCreateProduct();
 
+  const { data: allReviewsMap = new Map() } = useAllProductReviews(
+    products.map((p) => p.id),
+  );
+
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [manuallyVerified, setManuallyVerified] = useState<Set<string>>(
+    new Set(),
+  );
+
+  // Load admin status and manual verified list
+  useEffect(() => {
+    if (!actor || isFetching) return;
+    (actor as any)
+      .isCallerAdmin()
+      .then((admin: boolean) => {
+        setIsAdmin(admin);
+      })
+      .catch(() => {});
+    (actor as any)
+      .getManuallyVerifiedSellers()
+      .then((principals: Principal[]) => {
+        setManuallyVerified(new Set(principals.map((p) => p.toString())));
+      })
+      .catch(() => {});
+  }, [actor, isFetching]);
+
+  const sellerRatingsMap = useMemo(() => {
+    const map = new Map<
+      string,
+      { avg: number; count: number; isVerified: boolean }
+    >();
+    for (const product of products) {
+      const sellerKey = product.seller.toString();
+      const reviews = allReviewsMap.get(product.id.toString()) ?? [];
+      if (!map.has(sellerKey)) {
+        map.set(sellerKey, { avg: 0, count: 0, isVerified: false });
+      }
+      const entry = map.get(sellerKey)!;
+      for (const r of reviews) {
+        entry.count += 1;
+        entry.avg =
+          (entry.avg * (entry.count - 1) + Number(r.rating)) / entry.count;
+      }
+    }
+    for (const [key, entry] of map) {
+      const autoVerified = entry.avg >= 4.0 && entry.count >= 3;
+      const manualVerified = manuallyVerified.has(key);
+      entry.isVerified = autoVerified || manualVerified;
+    }
+    return map;
+  }, [products, allReviewsMap, manuallyVerified]);
+
   const [seeded, setSeeded] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] =
     useState<ProductCategory | null>(null);
   const [showSellModal, setShowSellModal] = useState(false);
   const [showMyListings, setShowMyListings] = useState(false);
+  const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [chatProduct, setChatProduct] = useState<Product | null>(null);
   const [reviewProduct, setReviewProduct] = useState<Product | null>(null);
   const [reviewsPanelProduct, setReviewsPanelProduct] =
@@ -143,6 +198,7 @@ export default function App() {
   const [sellerProfilePrincipal, setSellerProfilePrincipal] =
     useState<Principal | null>(null);
   const [displayCount, setDisplayCount] = useState(8);
+  const [minSellerRating, setMinSellerRating] = useState<number | null>(null);
 
   const prevIdentityRef = useRef<typeof identity>(undefined);
   useEffect(() => {
@@ -193,10 +249,22 @@ export default function App() {
       ? p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         p.description.toLowerCase().includes(searchQuery.toLowerCase())
       : true;
-    return matchesCategory && matchesSearch;
+    const matchesRating = minSellerRating
+      ? (sellerRatingsMap.get(p.seller.toString())?.avg ?? 0) >= minSellerRating
+      : true;
+    return matchesCategory && matchesSearch && matchesRating;
   });
 
   const displayedProducts = filteredProducts.slice(0, displayCount);
+
+  const handleVerifiedChange = (seller: Principal, verified: boolean) => {
+    setManuallyVerified((prev) => {
+      const next = new Set(prev);
+      if (verified) next.add(seller.toString());
+      else next.delete(seller.toString());
+      return next;
+    });
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -204,10 +272,20 @@ export default function App() {
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         onMyListingsClick={() => setShowMyListings(true)}
+        isAdmin={isAdmin}
+        onAdminClick={() => setShowAdminPanel(true)}
       />
       <NavBar onSellClick={handleSellClick} />
 
-      {showMyListings ? (
+      {showAdminPanel ? (
+        <main>
+          <AdminPanel
+            onBack={() => setShowAdminPanel(false)}
+            manuallyVerified={manuallyVerified}
+            onVerifiedChange={handleVerifiedChange}
+          />
+        </main>
+      ) : showMyListings ? (
         <main>
           <MyListings onBack={() => setShowMyListings(false)} />
         </main>
@@ -241,9 +319,15 @@ export default function App() {
                 onBuyNow={(product) => setChatProduct(product)}
                 onViewReviews={(product) => setReviewsPanelProduct(product)}
                 onViewSeller={(seller) => setSellerProfilePrincipal(seller)}
+                sellerRatingsMap={sellerRatingsMap}
+                minSellerRating={minSellerRating}
+                onMinSellerRatingChange={(r) => {
+                  setMinSellerRating(r);
+                  setDisplayCount(8);
+                }}
               />
             </div>
-            <BottomContent />
+            <BottomContent onSellClick={handleSellClick} />
           </div>
         </main>
       )}
@@ -289,6 +373,11 @@ export default function App() {
         open={!!sellerProfilePrincipal}
         onClose={() => setSellerProfilePrincipal(null)}
         onBuyNow={(product) => setChatProduct(product)}
+        sellerStats={
+          sellerProfilePrincipal
+            ? sellerRatingsMap.get(sellerProfilePrincipal.toString())
+            : undefined
+        }
       />
 
       <LiveSupportChat />

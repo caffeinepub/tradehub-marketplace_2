@@ -60,7 +60,7 @@ export function useSupportMessages() {
     queryKey: ["support"],
     queryFn: async () => {
       if (!actor) return [];
-      return actor.getSupportMessages();
+      return actor.getSupportMessages().catch(() => []);
     },
     enabled: !!actor && !isFetching,
     refetchInterval: 5000,
@@ -227,5 +227,26 @@ export function useUpdateProduct() {
       queryClient.invalidateQueries({ queryKey: ["products"] });
       queryClient.invalidateQueries({ queryKey: ["myProducts"] });
     },
+  });
+}
+
+export function useAllProductReviews(productIds: bigint[]) {
+  const { actor, isFetching } = useActor();
+  const key = productIds.map((id) => id.toString()).join(",");
+  return useQuery<Map<string, Review[]>>({
+    queryKey: ["allReviews", key],
+    queryFn: async () => {
+      if (!actor || productIds.length === 0) return new Map();
+      const results = await Promise.all(
+        productIds.map((id) => fullActor(actor).getReviewsByProduct(id)),
+      );
+      const map = new Map<string, Review[]>();
+      for (let i = 0; i < productIds.length; i++) {
+        map.set(productIds[i].toString(), results[i]);
+      }
+      return map;
+    },
+    enabled: !!actor && !isFetching && productIds.length > 0,
+    staleTime: 5000,
   });
 }
