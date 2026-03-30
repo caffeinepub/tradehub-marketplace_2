@@ -1,0 +1,63 @@
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --radius: 0.75rem;
+
+    /* TradeHub blue marketplace palette */
+    --background: 0.966 0.015 220;
+    --foreground: 0.16 0.01 250;
+    --card: 1 0 0;
+    --card-foreground: 0.16 0.01 250;
+    --popover: 1 0 0;
+    --popover-foreground: 0.16 0.01 250;
+
+    /* Primary: #1E73E8 vibrant blue */
+    --primary: 0.52 0.2 256;
+    --primary-foreground: 1 0 0;
+
+    /* Secondary: #DCEFFF light blue tint */
+    --secondary: 0.94 0.04 234;
+    --secondary-foreground: 0.52 0.2 256;
+
+    --muted: 0.93 0.015 222;
+    --muted-foreground: 0.52 0.01 250;
+
+    --accent: 0.94 0.04 234;
+    --accent-foreground: 0.52 0.2 256;
+
+    --destructive: 0.577 0.245 27.325;
+    --destructive-foreground: 1 0 0;
+
+    --border: 0.93 0.015 222;
+    --input: 0.93 0.015 222;
+    --ring: 0.52 0.2 256;
+
+    --chart-1: 0.52 0.2 256;
+    --chart-2: 0.6 0.118 184.704;
+    --chart-3: 0.83 0.17 85;
+    --chart-4: 0.628 0.265 303.9;
+    --chart-5: 0.645 0.246 16.439;
+
+    --sidebar: 1 0 0;
+    --sidebar-foreground: 0.16 0.01 250;
+    --sidebar-primary: 0.52 0.2 256;
+    --sidebar-primary-foreground: 1 0 0;
+    --sidebar-accent: 0.94 0.04 234;
+    --sidebar-accent-foreground: 0.52 0.2 256;
+    --sidebar-border: 0.93 0.015 222;
+    --sidebar-ring: 0.52 0.2 256;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans;
+  }
+}
