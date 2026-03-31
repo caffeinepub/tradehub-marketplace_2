@@ -4,7 +4,14 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
 import { Principal } from "@icp-sdk/core/principal";
-import { ShieldCheck, Star, UserCircle2, UserPlus } from "lucide-react";
+import {
+  CreditCard,
+  ExternalLink,
+  ShieldCheck,
+  Star,
+  UserCircle2,
+  UserPlus,
+} from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { UserRole } from "../backend.d";
@@ -28,6 +35,8 @@ export default function AdminPanel({
   const [loading, setLoading] = useState<string | null>(null);
   const [principalInput, setPrincipalInput] = useState("");
   const [promoting, setPromoting] = useState(false);
+  const [stripeKey, setStripeKey] = useState("");
+  const [savingStripe, setSavingStripe] = useState(false);
 
   const productIds = useMemo(() => allProducts.map((p) => p.id), [allProducts]);
   const { data: allReviewsMap = new Map() } = useAllProductReviews(productIds);
@@ -100,6 +109,20 @@ export default function AdminPanel({
     }
   };
 
+  const handleSaveStripeKey = async () => {
+    if (!actor || !stripeKey.trim()) return;
+    setSavingStripe(true);
+    try {
+      await (actor as any).setStripeSecretKey(stripeKey.trim());
+      toast.success("Stripe key saved!");
+      setStripeKey("");
+    } catch (_e) {
+      toast.error("Failed to save Stripe key.");
+    } finally {
+      setSavingStripe(false);
+    }
+  };
+
   return (
     <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
       <div className="flex items-center gap-3 mb-6">
@@ -116,6 +139,66 @@ export default function AdminPanel({
         <Badge variant="secondary" className="bg-blue-100 text-blue-700">
           Admin Controls
         </Badge>
+      </div>
+
+      {/* Stripe Configuration Section */}
+      <div className="bg-white rounded-xl border border-border shadow-sm mb-6">
+        <div className="p-4 border-b border-border flex items-center gap-2">
+          <CreditCard className="w-5 h-5 text-indigo-500" />
+          <h2 className="font-semibold text-foreground">
+            Stripe Configuration
+          </h2>
+          <Badge
+            variant="secondary"
+            className="bg-indigo-100 text-indigo-700 ml-auto text-xs"
+          >
+            Payments
+          </Badge>
+        </div>
+        <div className="p-5 space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Enter your Stripe secret key to enable credit and debit card
+            payments. TradeHub charges a
+            <span className="font-semibold text-foreground">
+              {" "}
+              3% platform fee
+            </span>{" "}
+            on each transaction.
+          </p>
+          <div className="flex gap-3">
+            <Input
+              type="password"
+              placeholder="sk_live_... or sk_test_..."
+              value={stripeKey}
+              onChange={(e) => setStripeKey(e.target.value)}
+              className="font-mono text-sm flex-1"
+              data-ocid="admin.stripe.input"
+            />
+            <Button
+              onClick={handleSaveStripeKey}
+              disabled={!stripeKey.trim() || savingStripe}
+              className="shrink-0 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white border-0"
+              data-ocid="admin.stripe.save_button"
+            >
+              {savingStripe ? "Saving…" : "Save Key"}
+            </Button>
+          </div>
+          <div className="flex items-start gap-2 text-xs text-muted-foreground bg-slate-50 border border-slate-200 rounded-md px-3 py-2">
+            <ShieldCheck className="w-3.5 h-3.5 text-green-500 mt-0.5 flex-shrink-0" />
+            <span>
+              Your Stripe secret key is stored securely on-chain.{" "}
+              <a
+                href="https://dashboard.stripe.com/apikeys"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-indigo-600 hover:underline inline-flex items-center gap-0.5"
+              >
+                Get your key from dashboard.stripe.com
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            </span>
+          </div>
+        </div>
       </div>
 
       {/* Admin Management Section */}

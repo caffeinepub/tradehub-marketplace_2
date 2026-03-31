@@ -77,4 +77,7 @@ export interface backendInterface {
     getReviewsByProduct(productId: bigint): Promise<Array<Review>>;
     setSellerVerified(seller: Principal, verified: boolean): Promise<void>;
     getManuallyVerifiedSellers(): Promise<Array<Principal>>;
+    setStripeSecretKey(key: string): Promise<void>;
+    createStripeCheckoutSession(productId: bigint, successUrl: string, cancelUrl: string): Promise<string>;
+    verifyStripePayment(sessionId: string): Promise<boolean>;
 }

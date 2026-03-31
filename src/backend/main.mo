@@ -11,11 +11,101 @@ import Principal "mo:core/Principal";
 import MixinStorage "blob-storage/Mixin";
 import MixinAuthorization "authorization/MixinAuthorization";
 import AccessControl "authorization/access-control";
+import Stripe "stripe/stripe";
+import OutCall "http-outcalls/outcall";
 
 actor {
   let accessControlState = AccessControl.initState();
   include MixinAuthorization(accessControlState);
   include MixinStorage();
+
+  // Stripe configuration
+  stable var stripeSecretKey : Text = "";
+  let stripeAllowedCountries : [Text] = ["US", "GB", "CA", "AU", "DE", "FR"];
+
+  public shared ({ caller }) func setStripeSecretKey(key : Text) : async () {
+    if (not AccessControl.isAdmin(accessControlState, caller)) {
+      Runtime.trap("Unauthorized: Only admins can set the Stripe key");
+    };
+    stripeSecretKey := key;
+  };
+
+  public query func transformResponse(input : OutCall.TransformationInput) : async OutCall.TransformationOutput {
+    OutCall.transform(input);
+  };
+
+  public shared ({ caller }) func createStripeCheckoutSession(productId : Nat, successUrl : Text, cancelUrl : Text) : async Text {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only users can create checkout sessions");
+    };
+    if (stripeSecretKey == "") {
+      Runtime.trap("Stripe is not configured yet");
+    };
+    let product = switch (products.get(productId)) {
+      case (null) { Runtime.trap("Product not found") };
+      case (?p) { p };
+    };
+    if (product.isSold) {
+      Runtime.trap("Product is already sold");
+    };
+    // price is stored in cents already; add 3% platform fee
+    let priceWithFee : Nat = product.price * 103 / 100;
+    let item : Stripe.ShoppingItem = {
+      currency = "usd";
+      productName = product.title;
+      productDescription = product.description;
+      priceInCents = priceWithFee;
+      quantity = 1;
+    };
+    let config : Stripe.StripeConfiguration = {
+      secretKey = stripeSecretKey;
+      allowedCountries = stripeAllowedCountries;
+    };
+    let url = await Stripe.createCheckoutSession(config, caller, [item], successUrl, cancelUrl, transformResponse);
+    // extract the checkout URL from the JSON response
+    let pattern = "\"url\":\"";
+    if (url.contains(#text pattern)) {
+      let parts = url.split(#text pattern);
+      switch (parts.next()) {
+        case (null) { Runtime.trap("Failed to parse Stripe response") };
+        case (?_) {
+          switch (parts.next()) {
+            case (?afterPattern) {
+              switch (afterPattern.split(#text "\"").next()) {
+                case (?checkoutUrl) { checkoutUrl };
+                case (null) { Runtime.trap("Failed to extract checkout URL") };
+              };
+            };
+            case (null) { Runtime.trap("Failed to extract checkout URL") };
+          };
+        };
+      };
+    } else {
+      Runtime.trap("Stripe did not return a checkout URL");
+    };
+  };
+
+  public shared ({ caller }) func verifyStripePayment(sessionId : Text) : async Bool {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only users can verify payments");
+    };
+    if (stripeSecretKey == "") {
+      return false;
+    };
+    let config : Stripe.StripeConfiguration = {
+      secretKey = stripeSecretKey;
+      allowedCountries = stripeAllowedCountries;
+    };
+    let status = await Stripe.getSessionStatus(config, sessionId, transformResponse);
+    switch (status) {
+      case (#completed({ response; userPrincipal })) {
+        // try to extract productId from client_reference_id or success URL
+        // For simplicity, mark nothing here - frontend handles markProductAsSold
+        true;
+      };
+      case (#failed(_)) { false };
+    };
+  };
 
   // User Profile Management
   public type UserProfile = {

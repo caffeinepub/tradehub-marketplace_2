@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import {
   Bell,
   ChevronDown,
+  Copy,
   LayoutList,
   LogIn,
   LogOut,
@@ -18,6 +19,7 @@ import {
   Search,
   Settings,
 } from "lucide-react";
+import { toast } from "sonner";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import type { Product } from "../hooks/useQueries";
 import CartSheet from "./CartSheet";
@@ -55,28 +57,28 @@ export default function Header({
 
   return (
     <header className="bg-white border-b border-border sticky top-0 z-40 shadow-xs">
-      <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 h-24 flex items-center gap-4">
+      <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 h-24 flex items-center gap-2 sm:gap-4">
         {/* Logo */}
         <div
-          className="flex items-center gap-3 shrink-0 select-none"
+          className="flex items-center gap-2 shrink-0 select-none min-w-0"
           data-ocid="nav.link"
         >
           <img
             src="/assets/generated/tradehub-logo-transparent.dim_200x200.png"
             alt="TradeHub logo"
-            className="w-20 h-20 object-contain"
+            className="w-14 h-14 sm:w-20 sm:h-20 object-contain flex-shrink-0"
           />
-          <span className="font-bold text-3xl text-foreground tracking-tight leading-none">
+          <span className="font-bold text-xl sm:text-3xl text-foreground tracking-tight leading-none whitespace-nowrap">
             TradeHub
           </span>
         </div>
 
-        {/* Search */}
-        <div className="flex-1 max-w-2xl relative">
+        {/* Search — hidden on very small screens, shrinks on medium */}
+        <div className="hidden sm:flex flex-1 min-w-0 max-w-2xl relative">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
           <Input
             data-ocid="header.search_input"
-            className="pl-10 h-11 rounded-full bg-muted/60 border border-border hover:border-primary/40 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20 transition-colors text-sm"
+            className="w-full pl-10 h-11 rounded-full bg-muted/60 border border-border hover:border-primary/40 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20 transition-colors text-sm"
             placeholder="Search products, categories…"
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
@@ -84,7 +86,22 @@ export default function Header({
         </div>
 
         {/* Actions */}
-        <div className="flex items-center gap-2 ml-auto shrink-0">
+        <div className="flex items-center gap-1 sm:gap-2 ml-auto shrink-0">
+          {/* Search icon on very small screens */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="sm:hidden relative rounded-full hover:bg-secondary"
+            onClick={() => {
+              const el = document.querySelector<HTMLInputElement>(
+                "[data-ocid='mobile-search-input']",
+              );
+              el?.focus();
+            }}
+          >
+            <Search className="w-5 h-5 text-muted-foreground" />
+          </Button>
+
           <Button
             variant="ghost"
             size="icon"
@@ -166,6 +183,18 @@ export default function Header({
                 )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
+                  onClick={() => {
+                    navigator.clipboard.writeText(principal ?? "");
+                    toast.success("Principal ID copied!");
+                  }}
+                  className="cursor-pointer"
+                  data-ocid="header.button"
+                >
+                  <Copy className="w-4 h-4 mr-2" />
+                  Copy My Principal ID
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
                   onClick={clear}
                   className="cursor-pointer text-destructive focus:text-destructive"
                   data-ocid="header.link"
@@ -180,7 +209,7 @@ export default function Header({
               size="sm"
               onClick={login}
               disabled={isLoggingIn}
-              className="rounded-full text-xs font-semibold ml-1"
+              className="rounded-full text-xs font-semibold ml-1 whitespace-nowrap"
               data-ocid="header.primary_button"
             >
               <LogIn className="w-3.5 h-3.5 mr-1.5" />

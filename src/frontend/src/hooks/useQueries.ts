@@ -286,3 +286,35 @@ export function useMyMessageCount() {
     staleTime: 0,
   });
 }
+
+export function useCreateStripeCheckoutSession() {
+  const { actor } = useActor();
+  return useMutation({
+    mutationFn: async ({
+      productId,
+      successUrl,
+      cancelUrl,
+    }: {
+      productId: bigint;
+      successUrl: string;
+      cancelUrl: string;
+    }) => {
+      if (!actor) throw new Error("No actor");
+      return (actor as any).createStripeCheckoutSession(
+        productId,
+        successUrl,
+        cancelUrl,
+      ) as Promise<string>;
+    },
+  });
+}
+
+export function useVerifyStripePayment() {
+  const { actor } = useActor();
+  return useMutation({
+    mutationFn: async (sessionId: string) => {
+      if (!actor) throw new Error("No actor");
+      return (actor as any).verifyStripePayment(sessionId) as Promise<boolean>;
+    },
+  });
+}
