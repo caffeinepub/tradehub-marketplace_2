@@ -2,6 +2,7 @@ import { Toaster } from "@/components/ui/sonner";
 import type { Principal } from "@icp-sdk/core/principal";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { ErrorBoundary } from "./ErrorBoundary";
 import { UserRole } from "./backend.d";
 import AdminPanel from "./components/AdminPanel";
 import BottomContent from "./components/BottomContent";
@@ -141,7 +142,7 @@ const SAMPLE_PRODUCTS = [
   },
 ];
 
-export default function App() {
+function AppContent() {
   const { actor, isFetching } = useActor();
   const { identity, login } = useInternetIdentity();
   const { data: products = [], isLoading: productsLoading } = useAllProducts();
@@ -379,6 +380,24 @@ export default function App() {
     }
   }, [identity]);
 
+  // Show a loading screen while the actor is being initialized
+  if (isFetching && !actor) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 mx-auto mb-4">
+            <img
+              src="/assets/generated/tradehub-logo-transparent.dim_200x200.png"
+              alt="TradeHub"
+              className="w-full h-full object-contain animate-pulse"
+            />
+          </div>
+          <p className="text-muted-foreground text-sm">Loading TradeHub…</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <Header
@@ -585,5 +604,13 @@ export default function App() {
       />
       <Toaster />
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <ErrorBoundary>
+      <AppContent />
+    </ErrorBoundary>
   );
 }

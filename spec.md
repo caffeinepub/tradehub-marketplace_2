@@ -1,26 +1,28 @@
 # TradeHub Marketplace
 
 ## Current State
-- `useProductMessages` polls every 3000ms with `staleTime: 5000`
-- `ProductChatModal` and `SellerInbox` both use polling for messages
-- `Header` has `hasMessages` prop but App.tsx never computes or passes it — the notification dot is always off
-- Seller inbox lists conversations but there's no real-time badge update at the header level
+Full-stack marketplace app with Motoko backend + React frontend. Backend implements products, reviews, chat, auth, Stripe, and user profiles. Frontend renders header, hero, product grid, and multiple panels/modals. Build passes but user reports things "not showing" — logo, sign-in, and content are invisible or broken at runtime.
 
 ## Requested Changes (Diff)
 
 ### Add
-- `useMyMessageCount` hook in `useQueries.ts` that fetches all of the signed-in seller's products and checks total message count, polling every 2 seconds
-- Compute `hasMessages` in `App.tsx` using `useMyMessageCount` and pass it to `Header`
+- ErrorBoundary wrapping at the root level in main.tsx
+- Defensive error handling for `getMyProducts` (unauthenticated users hitting protected methods)
+- Explicit fallback rendering for when actor is still loading
 
 ### Modify
-- `useProductMessages`: reduce `refetchInterval` to 2000 and `staleTime` to 0 so new messages appear quickly for both buyer and seller
-- `useSupportMessages`: reduce `refetchInterval` to 3000 and `staleTime` to 0
-- App.tsx: pass computed `hasMessages` to `<Header>`
+- main.tsx: wrap App with ErrorBoundary
+- useMyMessageCount: add .catch() to prevent unhandled rejection crashing the query
+- Header: ensure logo and Sign In / Sign Up buttons render unconditionally and are never hidden by CSS
+- App.tsx: fix any race conditions between actor loading and data fetching that cause blank states
+- Ensure backend.d.ts types align with useQueries.ts for getCallerUserProfile returning optional
 
 ### Remove
-- Nothing removed
+- Nothing to remove
 
 ## Implementation Plan
-1. In `useQueries.ts`, lower `refetchInterval` to 2000 and `staleTime` to 0 for `useProductMessages`
-2. Add `useMyMessageCount` hook that: fetches `getMyProducts()`, then for each product fetches `getMarketPlaceMessagesByProduct`, returns total message count. Poll every 5 seconds.
-3. In `App.tsx`, call `useMyMessageCount` and pass `hasMessages={myMessageCount > 0}` to `<Header>`
+1. Wrap App in ErrorBoundary in main.tsx
+2. Add catch blocks to useMyMessageCount query
+3. Audit Header.tsx to ensure logo and auth buttons are always visible at all viewport sizes
+4. Audit App.tsx to ensure it handles isFetching state gracefully and never shows blank page
+5. Validate and build

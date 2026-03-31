@@ -62,19 +62,16 @@ export default function Header({
   };
 
   return (
-    <header className="bg-white border-b border-border sticky top-0 z-40 shadow-xs">
-      <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 h-24 flex items-center gap-2 sm:gap-4">
-        {/* Logo */}
-        <div
-          className="flex items-center gap-2 shrink-0 select-none min-w-0"
-          data-ocid="nav.link"
-        >
+    <header className="bg-white border-b border-border sticky top-0 z-40 shadow-sm">
+      <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center gap-3">
+        {/* Logo — always visible */}
+        <div className="flex items-center gap-2 shrink-0 select-none">
           <img
             src="/assets/generated/tradehub-logo-transparent.dim_200x200.png"
             alt="TradeHub logo"
-            className="w-14 h-14 sm:w-20 sm:h-20 object-contain flex-shrink-0"
+            className="w-12 h-12 sm:w-16 sm:h-16 object-contain"
           />
-          <span className="font-bold text-xl sm:text-3xl text-foreground tracking-tight leading-none whitespace-nowrap">
+          <span className="font-bold text-lg sm:text-2xl text-foreground tracking-tight leading-none whitespace-nowrap">
             TradeHub
           </span>
         </div>
@@ -84,30 +81,15 @@ export default function Header({
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
           <Input
             data-ocid="header.search_input"
-            className="w-full pl-10 h-11 rounded-full bg-muted/60 border border-border hover:border-primary/40 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20 transition-colors text-sm"
+            className="w-full pl-10 h-10 rounded-full bg-muted/60 border border-border hover:border-primary/40 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20 transition-colors text-sm"
             placeholder="Search products, categories…"
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
           />
         </div>
 
-        {/* Actions */}
+        {/* Actions — always visible, pushed to the right */}
         <div className="flex items-center gap-1 sm:gap-2 ml-auto shrink-0">
-          {/* Search icon on very small screens */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="sm:hidden relative rounded-full hover:bg-secondary"
-            onClick={() => {
-              const el = document.querySelector<HTMLInputElement>(
-                "[data-ocid='mobile-search-input']",
-              );
-              el?.focus();
-            }}
-          >
-            <Search className="w-5 h-5 text-muted-foreground" />
-          </Button>
-
           <Button
             variant="ghost"
             size="icon"
@@ -133,7 +115,7 @@ export default function Header({
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
-                  className="flex items-center gap-2 cursor-pointer focus:outline-none ml-1"
+                  className="flex items-center gap-1.5 cursor-pointer focus:outline-none ml-1"
                   data-ocid="header.open_modal_button"
                 >
                   <div className="relative">
@@ -211,18 +193,20 @@ export default function Header({
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <div className="flex items-center gap-2 ml-1">
+            <div className="flex items-center gap-1.5 ml-1">
+              {/* Sign In — always visible */}
               <Button
                 variant="outline"
                 size="sm"
                 onClick={login}
                 disabled={isLoggingIn}
-                className="rounded-full text-xs font-semibold whitespace-nowrap hidden sm:flex"
+                className="rounded-full text-xs font-semibold whitespace-nowrap"
                 data-ocid="header.secondary_button"
               >
-                <LogIn className="w-3.5 h-3.5 mr-1.5" />
+                <LogIn className="w-3.5 h-3.5 mr-1" />
                 {isLoggingIn ? "Signing in…" : "Sign In"}
               </Button>
+              {/* Sign Up — always visible */}
               <Button
                 size="sm"
                 onClick={handleSignUp}
@@ -230,7 +214,7 @@ export default function Header({
                 className="rounded-full text-xs font-semibold whitespace-nowrap bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 border-0"
                 data-ocid="header.primary_button"
               >
-                <UserPlus className="w-3.5 h-3.5 mr-1.5" />
+                <UserPlus className="w-3.5 h-3.5 mr-1" />
                 Sign Up
               </Button>
             </div>

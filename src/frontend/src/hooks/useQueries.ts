@@ -48,7 +48,11 @@ export function useMyProducts() {
     queryKey: ["myProducts"],
     queryFn: async () => {
       if (!actor) return [];
-      return fullActor(actor).getMyProducts();
+      try {
+        return await fullActor(actor).getMyProducts();
+      } catch {
+        return [];
+      }
     },
     enabled: !!actor && !isFetching,
   });
@@ -272,14 +276,18 @@ export function useMyMessageCount() {
     queryKey: ["myMessageCount"],
     queryFn: async () => {
       if (!actor) return 0;
-      const products = await fullActor(actor).getMyProducts();
-      if (products.length === 0) return 0;
-      const allMessages = await Promise.all(
-        products.map((p) =>
-          actor.getMarketPlaceMessagesByProduct(p.id).catch(() => []),
-        ),
-      );
-      return allMessages.reduce((sum, msgs) => sum + msgs.length, 0);
+      try {
+        const products = await fullActor(actor).getMyProducts();
+        if (products.length === 0) return 0;
+        const allMessages = await Promise.all(
+          products.map((p) =>
+            actor.getMarketPlaceMessagesByProduct(p.id).catch(() => []),
+          ),
+        );
+        return allMessages.reduce((sum, msgs) => sum + msgs.length, 0);
+      } catch {
+        return 0;
+      }
     },
     enabled: !!actor && !isFetching,
     refetchInterval: 5000,
