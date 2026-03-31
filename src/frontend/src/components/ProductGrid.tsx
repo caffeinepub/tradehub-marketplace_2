@@ -23,12 +23,14 @@ interface ProductGridProps {
   onViewReviews: (product: Product) => void;
   onViewSeller: (seller: Principal) => void;
   onProductClick: (product: Product) => void;
+  onAddToCart: (product: Product) => void;
   sellerRatingsMap: Map<
     string,
     { avg: number; count: number; isVerified: boolean }
   >;
   minSellerRating: number | null;
   onMinSellerRatingChange: (rating: number | null) => void;
+  categoryLabel?: string;
 }
 
 export default function ProductGrid({
@@ -40,19 +42,34 @@ export default function ProductGrid({
   onViewReviews,
   onViewSeller,
   onProductClick,
+  onAddToCart,
   sellerRatingsMap,
   minSellerRating,
   onMinSellerRatingChange,
+  categoryLabel,
 }: ProductGridProps) {
   return (
     <section className="py-6">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold text-foreground">
-          Marketplace Listings
-        </h2>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <span>{products.length} items</span>
-        </div>
+        {categoryLabel ? (
+          <div className="flex items-center gap-3">
+            <h2 className="text-xl font-bold text-foreground">
+              {categoryLabel} Listings
+            </h2>
+            <span className="text-sm text-muted-foreground">
+              ({products.length} items)
+            </span>
+          </div>
+        ) : (
+          <>
+            <h2 className="text-lg font-semibold text-foreground">
+              Marketplace Listings
+            </h2>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span>{products.length} items</span>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Seller rating filter */}
@@ -127,6 +144,7 @@ export default function ProductGrid({
                 product.seller && onViewSeller(product.seller)
               }
               onProductClick={() => onProductClick(product)}
+              onAddToCart={() => onAddToCart(product)}
               isVerifiedSeller={
                 sellerRatingsMap.get(product.seller.toString())?.isVerified ??
                 false

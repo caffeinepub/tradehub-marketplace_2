@@ -35,6 +35,7 @@ interface ProductCardProps {
   onViewSeller: () => void;
   isVerifiedSeller: boolean;
   onProductClick: () => void;
+  onAddToCart: () => void;
 }
 
 export default function ProductCard({
@@ -45,6 +46,7 @@ export default function ProductCard({
   onViewSeller,
   isVerifiedSeller,
   onProductClick,
+  onAddToCart,
 }: ProductCardProps) {
   const [wishlisted, setWishlisted] = useState(false);
   const { data: reviews = [] } = useReviews(product.id);
@@ -196,7 +198,10 @@ export default function ProductCard({
             size="sm"
             variant="outline"
             disabled={product.isSold}
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              onAddToCart();
+            }}
             className="flex-1 rounded-full text-xs border-primary text-primary hover:bg-secondary"
             data-ocid="products.secondary_button"
           >

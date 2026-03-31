@@ -27,8 +27,18 @@ import {
   useAllProductReviews,
   useAllProducts,
   useCreateProduct,
+  useProductsByCategory,
 } from "./hooks/useQueries";
 import type { Product } from "./hooks/useQueries";
+
+const CATEGORY_LABEL_MAP: Record<string, string> = {
+  [ProductCategory.electronics]: "Electronics",
+  [ProductCategory.fashion]: "Fashion",
+  [ProductCategory.home]: "Home",
+  [ProductCategory.sports]: "Sports",
+  [ProductCategory.hobbies]: "Hobbies",
+  [ProductCategory.autos]: "Autos",
+};
 
 const SAMPLE_PRODUCTS = [
   {
@@ -143,6 +153,35 @@ export default function App() {
     new Set(),
   );
 
+  // Cart state
+  const [cartItems, setCartItems] = useState<Product[]>([]);
+
+  const addToCart = useCallback((product: Product) => {
+    setCartItems((prev) => {
+      const alreadyIn = prev.some((p) => p.id === product.id);
+      if (alreadyIn) {
+        toast.info("Already in cart!");
+        return prev;
+      }
+      toast.success("Added to cart!");
+      return [...prev, product];
+    });
+  }, []);
+
+  const removeFromCart = useCallback((productId: bigint) => {
+    setCartItems((prev) => prev.filter((p) => p.id !== productId));
+  }, []);
+
+  const clearCart = useCallback(() => {
+    setCartItems([]);
+  }, []);
+
+  // Sort mode
+  const [sortMode, setSortMode] = useState<"trending" | "deals" | null>(null);
+
+  // Support chat open state
+  const [supportChatOpen, setSupportChatOpen] = useState(false);
+
   // Load admin status and manual verified list
   useEffect(() => {
     if (!actor || isFetching) return;
@@ -204,6 +243,16 @@ export default function App() {
   const [displayCount, setDisplayCount] = useState(8);
   const [minSellerRating, setMinSellerRating] = useState<number | null>(null);
 
+  const { data: categoryProducts = [], isLoading: categoryLoading } =
+    useProductsByCategory(selectedCategory);
+
+  const activeProducts = selectedCategory ? categoryProducts : products;
+  const activeLoading = selectedCategory ? categoryLoading : productsLoading;
+
+  const activeCategoryLabel = selectedCategory
+    ? CATEGORY_LABEL_MAP[selectedCategory as unknown as string]
+    : undefined;
+
   const prevIdentityRef = useRef<typeof identity>(undefined);
   useEffect(() => {
     const wasLoggedOut = !prevIdentityRef.current;
@@ -245,19 +294,35 @@ export default function App() {
     setShowSellModal(true);
   };
 
-  const filteredProducts = products.filter((p) => {
-    const matchesCategory = selectedCategory
-      ? p.category === selectedCategory
-      : true;
-    const matchesSearch = searchQuery
-      ? p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.description.toLowerCase().includes(searchQuery.toLowerCase())
-      : true;
-    const matchesRating = minSellerRating
-      ? (sellerRatingsMap.get(p.seller.toString())?.avg ?? 0) >= minSellerRating
-      : true;
-    return matchesCategory && matchesSearch && matchesRating;
-  });
+  const filteredProducts = useMemo(() => {
+    let result = activeProducts.filter((p) => {
+      const matchesSearch = searchQuery
+        ? p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          p.description.toLowerCase().includes(searchQuery.toLowerCase())
+        : true;
+      const matchesRating = minSellerRating
+        ? (sellerRatingsMap.get(p.seller.toString())?.avg ?? 0) >=
+          minSellerRating
+        : true;
+      return matchesSearch && matchesRating;
+    });
+
+    if (sortMode === "trending") {
+      result = [...result].sort(
+        (a, b) => Number(b.createdAt) - Number(a.createdAt),
+      );
+    } else if (sortMode === "deals") {
+      result = [...result].sort((a, b) => Number(a.price) - Number(b.price));
+    }
+
+    return result;
+  }, [
+    activeProducts,
+    searchQuery,
+    minSellerRating,
+    sellerRatingsMap,
+    sortMode,
+  ]);
 
   const displayedProducts = filteredProducts.slice(0, displayCount);
 
@@ -268,6 +333,16 @@ export default function App() {
       else next.delete(seller.toString());
       return next;
     });
+  };
+
+  const handleTrendingClick = () => {
+    setSortMode((prev) => (prev === "trending" ? null : "trending"));
+    document.getElementById("products")?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const handleDealsClick = () => {
+    setSortMode((prev) => (prev === "deals" ? null : "deals"));
+    document.getElementById("products")?.scrollIntoView({ behavior: "smooth" });
   };
 
   // Navigate away from inbox/listings/admin when identity is lost
@@ -305,8 +380,23 @@ export default function App() {
           setShowSellerInbox(false);
           setSelectedProduct(null);
         }}
+        cartItems={cartItems}
+        onRemoveFromCart={removeFromCart}
+        onClearCart={clearCart}
+        onBuyNow={(product) => setChatProduct(product)}
       />
-      <NavBar onSellClick={handleSellClick} />
+      <NavBar
+        onSellClick={handleSellClick}
+        onExploreClick={() =>
+          document
+            .getElementById("products")
+            ?.scrollIntoView({ behavior: "smooth" })
+        }
+        onTrendingClick={handleTrendingClick}
+        onDealsClick={handleDealsClick}
+        onHelpClick={() => setSupportChatOpen(true)}
+        activeSortMode={sortMode}
+      />
 
       {showAdminPanel ? (
         <main>
@@ -361,6 +451,7 @@ export default function App() {
               onSelect={(cat) => {
                 setSelectedCategory(cat);
                 setDisplayCount(8);
+                setSortMode(null);
                 document
                   .getElementById("products")
                   ?.scrollIntoView({ behavior: "smooth" });
@@ -369,19 +460,21 @@ export default function App() {
             <div id="products">
               <ProductGrid
                 products={displayedProducts}
-                isLoading={productsLoading}
+                isLoading={activeLoading}
                 hasMore={displayCount < filteredProducts.length}
                 onLoadMore={() => setDisplayCount((c) => c + 8)}
                 onBuyNow={(product) => setChatProduct(product)}
                 onViewReviews={(product) => setReviewsPanelProduct(product)}
                 onViewSeller={(seller) => setSellerProfilePrincipal(seller)}
                 onProductClick={(product) => setSelectedProduct(product)}
+                onAddToCart={addToCart}
                 sellerRatingsMap={sellerRatingsMap}
                 minSellerRating={minSellerRating}
                 onMinSellerRatingChange={(r) => {
                   setMinSellerRating(r);
                   setDisplayCount(8);
                 }}
+                categoryLabel={activeCategoryLabel}
               />
             </div>
             <BottomContent onSellClick={handleSellClick} />
@@ -440,7 +533,10 @@ export default function App() {
         }
       />
 
-      <LiveSupportChat />
+      <LiveSupportChat
+        forceOpen={supportChatOpen}
+        onForceOpenHandled={() => setSupportChatOpen(false)}
+      />
       <Toaster />
     </div>
   );

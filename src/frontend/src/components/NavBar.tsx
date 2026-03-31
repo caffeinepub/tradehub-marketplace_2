@@ -3,15 +3,28 @@ import { ChevronDown, Tag } from "lucide-react";
 
 interface NavBarProps {
   onSellClick: () => void;
+  onExploreClick?: () => void;
+  onTrendingClick?: () => void;
+  onDealsClick?: () => void;
+  onHelpClick?: () => void;
+  activeSortMode?: "trending" | "deals" | null;
 }
 
-export default function NavBar({ onSellClick }: NavBarProps) {
+export default function NavBar({
+  onSellClick,
+  onExploreClick,
+  onTrendingClick,
+  onDealsClick,
+  onHelpClick,
+  activeSortMode,
+}: NavBarProps) {
   return (
     <nav className="bg-white border-b border-border">
       <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 h-11 flex items-center justify-between">
         <div className="flex items-center gap-6">
           <button
             type="button"
+            onClick={onExploreClick}
             className="flex items-center gap-1 text-sm font-medium text-foreground hover:text-primary transition-colors"
             data-ocid="nav.link"
           >
@@ -19,20 +32,31 @@ export default function NavBar({ onSellClick }: NavBarProps) {
           </button>
           <button
             type="button"
-            className="text-sm text-muted-foreground hover:text-primary transition-colors"
-            data-ocid="nav.link"
+            onClick={onTrendingClick}
+            className={`text-sm transition-colors font-medium ${
+              activeSortMode === "trending"
+                ? "text-primary underline underline-offset-4"
+                : "text-muted-foreground hover:text-primary"
+            }`}
+            data-ocid="nav.tab"
           >
             Trending
           </button>
           <button
             type="button"
-            className="text-sm text-muted-foreground hover:text-primary transition-colors"
-            data-ocid="nav.link"
+            onClick={onDealsClick}
+            className={`text-sm transition-colors font-medium ${
+              activeSortMode === "deals"
+                ? "text-primary underline underline-offset-4"
+                : "text-muted-foreground hover:text-primary"
+            }`}
+            data-ocid="nav.tab"
           >
             Deals
           </button>
           <button
             type="button"
+            onClick={onHelpClick}
             className="text-sm text-muted-foreground hover:text-primary transition-colors"
             data-ocid="nav.link"
           >

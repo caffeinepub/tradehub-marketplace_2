@@ -29,6 +29,19 @@ export function useAllProducts() {
   });
 }
 
+export function useProductsByCategory(category: ProductCategory | null) {
+  const { actor, isFetching } = useActor();
+  return useQuery<Product[]>({
+    queryKey: ["products", category],
+    queryFn: async () => {
+      if (!actor || !category) return [];
+      return fullActor(actor).getProductsByCategory(category);
+    },
+    enabled: !!actor && !isFetching && !!category,
+    staleTime: 5000,
+  });
+}
+
 export function useMyProducts() {
   const { actor, isFetching } = useActor();
   return useQuery<Product[]>({
@@ -165,7 +178,7 @@ export function useCreateProduct() {
       );
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["products"], exact: false });
       queryClient.invalidateQueries({ queryKey: ["myProducts"] });
     },
   });
@@ -180,7 +193,7 @@ export function useMarkAsSold() {
       return actor.markProductAsSold(id);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["products"], exact: false });
       queryClient.invalidateQueries({ queryKey: ["myProducts"] });
     },
   });
@@ -195,7 +208,7 @@ export function useDeleteProduct() {
       return fullActor(actor).deleteProduct(id);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["products"], exact: false });
       queryClient.invalidateQueries({ queryKey: ["myProducts"] });
     },
   });
@@ -224,7 +237,7 @@ export function useUpdateProduct() {
       );
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["products"], exact: false });
       queryClient.invalidateQueries({ queryKey: ["myProducts"] });
     },
   });

@@ -17,9 +17,10 @@ import {
   MessageSquare,
   Search,
   Settings,
-  ShoppingCart,
 } from "lucide-react";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
+import type { Product } from "../hooks/useQueries";
+import CartSheet from "./CartSheet";
 
 interface HeaderProps {
   searchQuery: string;
@@ -29,6 +30,10 @@ interface HeaderProps {
   hasMessages?: boolean;
   isAdmin?: boolean;
   onAdminClick?: () => void;
+  cartItems?: Product[];
+  onRemoveFromCart?: (id: bigint) => void;
+  onClearCart?: () => void;
+  onBuyNow?: (product: Product) => void;
 }
 
 export default function Header({
@@ -39,6 +44,10 @@ export default function Header({
   hasMessages = false,
   isAdmin,
   onAdminClick,
+  cartItems = [],
+  onRemoveFromCart,
+  onClearCart,
+  onBuyNow,
 }: HeaderProps) {
   const { login, clear, identity, isLoggingIn } = useInternetIdentity();
   const principal = identity?.getPrincipal().toString();
@@ -80,18 +89,21 @@ export default function Header({
             variant="ghost"
             size="icon"
             className="relative rounded-full hover:bg-secondary"
+            onClick={onMessagesClick}
             data-ocid="header.button"
           >
             <Bell className="w-5 h-5 text-muted-foreground" />
+            {hasMessages && (
+              <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-red-500 border-2 border-white" />
+            )}
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="rounded-full hover:bg-secondary"
-            data-ocid="header.button"
-          >
-            <ShoppingCart className="w-5 h-5 text-muted-foreground" />
-          </Button>
+
+          <CartSheet
+            cartItems={cartItems}
+            onRemoveFromCart={onRemoveFromCart ?? (() => {})}
+            onClearCart={onClearCart ?? (() => {})}
+            onBuyNow={onBuyNow ?? (() => {})}
+          />
 
           {identity ? (
             <DropdownMenu>

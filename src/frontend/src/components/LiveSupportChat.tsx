@@ -9,7 +9,15 @@ import { toast } from "sonner";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import { useSendSupportMessage, useSupportMessages } from "../hooks/useQueries";
 
-export default function LiveSupportChat() {
+interface LiveSupportChatProps {
+  forceOpen?: boolean;
+  onForceOpenHandled?: () => void;
+}
+
+export default function LiveSupportChat({
+  forceOpen,
+  onForceOpenHandled,
+}: LiveSupportChatProps) {
   const [open, setOpen] = useState(false);
   const [senderName, setSenderName] = useState("");
   const [message, setMessage] = useState("");
@@ -19,6 +27,14 @@ export default function LiveSupportChat() {
 
   const { data: messages = [], isLoading } = useSupportMessages();
   const sendMessage = useSendSupportMessage();
+
+  // Handle forceOpen from parent
+  useEffect(() => {
+    if (forceOpen) {
+      setOpen(true);
+      onForceOpenHandled?.();
+    }
+  }, [forceOpen, onForceOpenHandled]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: bottomRef is a stable mutable ref
   useEffect(() => {
