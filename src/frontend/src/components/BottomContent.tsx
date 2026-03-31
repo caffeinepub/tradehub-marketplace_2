@@ -31,12 +31,15 @@ const BLOG_POSTS = [
 
 interface BottomContentProps {
   onSellClick: () => void;
+  onBlogPostClick?: (post: { title: string; date: string }) => void;
 }
 
-export default function BottomContent({ onSellClick }: BottomContentProps) {
+export default function BottomContent({
+  onSellClick,
+  onBlogPostClick,
+}: BottomContentProps) {
   return (
     <section className="py-10 grid lg:grid-cols-3 gap-6">
-      {/* Start Selling Promo */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         whileInView={{ opacity: 1, y: 0 }}
@@ -63,7 +66,6 @@ export default function BottomContent({ onSellClick }: BottomContentProps) {
         </Button>
       </motion.div>
 
-      {/* Top Sellers */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         whileInView={{ opacity: 1, y: 0 }}
@@ -100,7 +102,6 @@ export default function BottomContent({ onSellClick }: BottomContentProps) {
         </div>
       </motion.div>
 
-      {/* Blog */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         whileInView={{ opacity: 1, y: 0 }}
@@ -111,9 +112,11 @@ export default function BottomContent({ onSellClick }: BottomContentProps) {
         <h3 className="font-semibold text-foreground mb-4">📝 TradeHub Blog</h3>
         <div className="space-y-3">
           {BLOG_POSTS.map((post, i) => (
-            <div
+            <button
               key={post.title}
-              className="flex gap-3 items-start"
+              type="button"
+              onClick={() => onBlogPostClick?.(post)}
+              className="flex gap-3 items-start w-full text-left cursor-pointer hover:bg-secondary/40 rounded-lg p-1 -mx-1 transition-colors"
               data-ocid={`blog.item.${i + 1}`}
             >
               <img
@@ -134,7 +137,7 @@ export default function BottomContent({ onSellClick }: BottomContentProps) {
                 </p>
               </div>
               <ExternalLink className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
-            </div>
+            </button>
           ))}
         </div>
       </motion.div>

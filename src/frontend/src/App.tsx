@@ -9,6 +9,7 @@ import CategoryPicks from "./components/CategoryPicks";
 import Footer from "./components/Footer";
 import Header from "./components/Header";
 import Hero from "./components/Hero";
+import InfoModal from "./components/InfoModal";
 import LiveSupportChat from "./components/LiveSupportChat";
 import MyListings from "./components/MyListings";
 import NavBar from "./components/NavBar";
@@ -27,6 +28,7 @@ import {
   useAllProductReviews,
   useAllProducts,
   useCreateProduct,
+  useMyMessageCount,
   useProductsByCategory,
 } from "./hooks/useQueries";
 import type { Product } from "./hooks/useQueries";
@@ -143,6 +145,7 @@ export default function App() {
   const { identity, login } = useInternetIdentity();
   const { data: products = [], isLoading: productsLoading } = useAllProducts();
   const createProduct = useCreateProduct();
+  const { data: myMessageCount = 0 } = useMyMessageCount();
 
   const { data: allReviewsMap = new Map() } = useAllProductReviews(
     products.map((p) => p.id),
@@ -181,6 +184,8 @@ export default function App() {
 
   // Support chat open state
   const [supportChatOpen, setSupportChatOpen] = useState(false);
+
+  const [infoModalType, setInfoModalType] = useState<string | null>(null);
 
   // Load admin status and manual verified list
   useEffect(() => {
@@ -384,6 +389,7 @@ export default function App() {
         onRemoveFromCart={removeFromCart}
         onClearCart={clearCart}
         onBuyNow={(product) => setChatProduct(product)}
+        hasMessages={myMessageCount > 0}
       />
       <NavBar
         onSellClick={handleSellClick}
@@ -477,12 +483,24 @@ export default function App() {
                 categoryLabel={activeCategoryLabel}
               />
             </div>
-            <BottomContent onSellClick={handleSellClick} />
+            <BottomContent
+              onSellClick={handleSellClick}
+              onBlogPostClick={() => setInfoModalType("blog")}
+            />
           </div>
         </main>
       )}
 
-      <Footer />
+      <Footer
+        onLinkClick={(type) => setInfoModalType(type)}
+        onCategorySelect={(cat) => {
+          setSelectedCategory(cat as any);
+          document
+            .getElementById("products")
+            ?.scrollIntoView({ behavior: "smooth" });
+        }}
+        onHelpClick={() => setSupportChatOpen(true)}
+      />
 
       <SellModal open={showSellModal} onClose={() => setShowSellModal(false)} />
 
@@ -532,6 +550,8 @@ export default function App() {
             : undefined
         }
       />
+
+      <InfoModal type={infoModalType} onClose={() => setInfoModalType(null)} />
 
       <LiveSupportChat
         forceOpen={supportChatOpen}

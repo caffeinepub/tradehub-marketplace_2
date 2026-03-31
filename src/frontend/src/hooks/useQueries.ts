@@ -63,7 +63,8 @@ export function useProductMessages(productId: bigint | null) {
       return actor.getMarketPlaceMessagesByProduct(productId);
     },
     enabled: !!actor && !isFetching && productId !== null,
-    refetchInterval: 3000,
+    refetchInterval: 2000,
+    staleTime: 0,
   });
 }
 
@@ -77,6 +78,7 @@ export function useSupportMessages() {
     },
     enabled: !!actor && !isFetching,
     refetchInterval: 5000,
+    staleTime: 0,
   });
 }
 
@@ -261,5 +263,26 @@ export function useAllProductReviews(productIds: bigint[]) {
     },
     enabled: !!actor && !isFetching && productIds.length > 0,
     staleTime: 5000,
+  });
+}
+
+export function useMyMessageCount() {
+  const { actor, isFetching } = useActor();
+  return useQuery<number>({
+    queryKey: ["myMessageCount"],
+    queryFn: async () => {
+      if (!actor) return 0;
+      const products = await fullActor(actor).getMyProducts();
+      if (products.length === 0) return 0;
+      const allMessages = await Promise.all(
+        products.map((p) =>
+          actor.getMarketPlaceMessagesByProduct(p.id).catch(() => []),
+        ),
+      );
+      return allMessages.reduce((sum, msgs) => sum + msgs.length, 0);
+    },
+    enabled: !!actor && !isFetching,
+    refetchInterval: 5000,
+    staleTime: 0,
   });
 }
