@@ -16,6 +16,7 @@ import NavBar from "./components/NavBar";
 import ProductChatModal from "./components/ProductChatModal";
 import ProductDetailPage from "./components/ProductDetailPage";
 import ProductGrid from "./components/ProductGrid";
+import RegisterModal from "./components/RegisterModal";
 import ReviewModal from "./components/ReviewModal";
 import ReviewsPanel from "./components/ReviewsPanel";
 import SellModal from "./components/SellModal";
@@ -156,6 +157,9 @@ export default function App() {
     new Set(),
   );
 
+  // Registration modal
+  const [showRegisterModal, setShowRegisterModal] = useState(false);
+
   // Cart state
   const [cartItems, setCartItems] = useState<Product[]>([]);
 
@@ -266,9 +270,27 @@ export default function App() {
 
     if (wasLoggedOut && isNowLoggedIn && actor) {
       const principal = identity!.getPrincipal();
-      actor.assignCallerUserRole(principal, UserRole.user).catch(() => {
-        // role may already be assigned
-      });
+      actor.assignCallerUserRole(principal, UserRole.user).catch(() => {});
+
+      // Check if this is a new user (no profile yet) or signup intent
+      const signupIntent =
+        sessionStorage.getItem("tradehub_signup_intent") === "true";
+      sessionStorage.removeItem("tradehub_signup_intent");
+
+      if (signupIntent) {
+        // Always show registration for signup intent
+        setShowRegisterModal(true);
+      } else {
+        // Check if they have a profile; show modal if not
+        actor
+          .getCallerUserProfile()
+          .then((profile) => {
+            if (!profile) {
+              setShowRegisterModal(true);
+            }
+          })
+          .catch(() => {});
+      }
     }
   }, [identity, actor]);
 
@@ -504,7 +526,6 @@ export default function App() {
 
       <SellModal open={showSellModal} onClose={() => setShowSellModal(false)} />
 
-      {/* Buy Now chat — auto-messages and skips name entry when authenticated */}
       {chatProduct && (
         <ProductChatModal
           product={chatProduct}
@@ -552,6 +573,11 @@ export default function App() {
       />
 
       <InfoModal type={infoModalType} onClose={() => setInfoModalType(null)} />
+
+      <RegisterModal
+        open={showRegisterModal}
+        onComplete={() => setShowRegisterModal(false)}
+      />
 
       <LiveSupportChat
         forceOpen={supportChatOpen}

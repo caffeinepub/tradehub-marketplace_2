@@ -18,6 +18,7 @@ import {
   MessageSquare,
   Search,
   Settings,
+  UserPlus,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
@@ -55,6 +56,11 @@ export default function Header({
   const principal = identity?.getPrincipal().toString();
   const shortId = principal ? principal.slice(0, 5) : "";
 
+  const handleSignUp = () => {
+    sessionStorage.setItem("tradehub_signup_intent", "true");
+    login();
+  };
+
   return (
     <header className="bg-white border-b border-border sticky top-0 z-40 shadow-xs">
       <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 h-24 flex items-center gap-2 sm:gap-4">
@@ -73,7 +79,7 @@ export default function Header({
           </span>
         </div>
 
-        {/* Search — hidden on very small screens, shrinks on medium */}
+        {/* Search — hidden on very small screens */}
         <div className="hidden sm:flex flex-1 min-w-0 max-w-2xl relative">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
           <Input
@@ -205,16 +211,29 @@ export default function Header({
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <Button
-              size="sm"
-              onClick={login}
-              disabled={isLoggingIn}
-              className="rounded-full text-xs font-semibold ml-1 whitespace-nowrap"
-              data-ocid="header.primary_button"
-            >
-              <LogIn className="w-3.5 h-3.5 mr-1.5" />
-              {isLoggingIn ? "Signing in…" : "Sign In"}
-            </Button>
+            <div className="flex items-center gap-2 ml-1">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={login}
+                disabled={isLoggingIn}
+                className="rounded-full text-xs font-semibold whitespace-nowrap hidden sm:flex"
+                data-ocid="header.secondary_button"
+              >
+                <LogIn className="w-3.5 h-3.5 mr-1.5" />
+                {isLoggingIn ? "Signing in…" : "Sign In"}
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleSignUp}
+                disabled={isLoggingIn}
+                className="rounded-full text-xs font-semibold whitespace-nowrap bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 border-0"
+                data-ocid="header.primary_button"
+              >
+                <UserPlus className="w-3.5 h-3.5 mr-1.5" />
+                Sign Up
+              </Button>
+            </div>
           )}
         </div>
       </div>
