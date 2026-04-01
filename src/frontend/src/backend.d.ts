@@ -40,6 +40,17 @@ export interface Review {
     comment: string;
     timestamp: Time;
 }
+export interface PaymentTransaction {
+    id: bigint;
+    buyerId: Principal;
+    productId: bigint;
+    productTitle: string;
+    amountInCents: bigint;
+    commissionInCents: bigint;
+    status: string;
+    sessionId: string;
+    createdAt: Time;
+}
 export interface Analytics {
     visitCount: bigint;
     totalSalesCount: bigint;
@@ -47,6 +58,8 @@ export interface Analytics {
     registeredUsers: bigint;
     activeListings: bigint;
     authorizedUserCount: bigint;
+    totalCommission: bigint;
+    totalTransactions: bigint;
 }
 export enum ProductCategory {
     autos = "autos",
@@ -88,6 +101,8 @@ export interface backendInterface {
     setStripeSecretKey(key: string): Promise<void>;
     createStripeCheckoutSession(productId: bigint, successUrl: string, cancelUrl: string): Promise<string>;
     verifyStripePayment(sessionId: string): Promise<boolean>;
+    recordPayment(productId: bigint, sessionId: string, amountInCents: bigint): Promise<bigint>;
+    getPaymentTransactions(): Promise<Array<PaymentTransaction>>;
     trackVisit(): Promise<void>;
     getAnalytics(): Promise<Analytics>;
     addAuthorizedUser(user: Principal): Promise<void>;

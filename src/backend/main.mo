@@ -24,7 +24,6 @@ actor {
     "aic5z-horrw-4jwce-ms65y-wcupc-tori5-ojc35-pyfit-3cwqh-cvcjo-zae",
   ];
 
-  // Initialize bootstrap admins on first run
   stable var bootstrapDone : Bool = false;
 
   private func ensureBootstrapAdmins() {
@@ -37,20 +36,67 @@ actor {
     };
   };
 
-  // Run bootstrap on init
   do { ensureBootstrapAdmins() };
 
   // Stripe configuration
   stable var stripeSecretKey : Text = "";
-  let stripeAllowedCountries : [Text] = ["US", "GB", "CA", "AU", "DE", "FR"];
+  let stripeAllowedCountries : [Text] = ["US", "GB", "CA", "AU", "DE", "FR", "NG"];
 
   // Analytics
   stable var visitCount : Nat = 0;
   stable var totalSalesCount : Nat = 0;
   stable var totalRevenue : Nat = 0;
 
-  // Authorized users list (tracked separately from role system)
+  // Authorized users list
   let authorizedUsers = Set.empty<Principal>();
+
+  // Payment Transactions
+  public type PaymentTransaction = {
+    id : Nat;
+    buyerId : Principal;
+    productId : Nat;
+    productTitle : Text;
+    amountInCents : Nat;
+    commissionInCents : Nat;
+    status : Text;
+    sessionId : Text;
+    createdAt : Time.Time;
+  };
+
+  let paymentTransactions = Map.empty<Nat, PaymentTransaction>();
+  stable var nextTransactionId : Nat = 1;
+
+  public shared ({ caller }) func recordPayment(productId : Nat, sessionId : Text, amountInCents : Nat) : async Nat {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only users can record payments");
+    };
+    let productTitle = switch (products.get(productId)) {
+      case (?p) { p.title };
+      case (null) { "Unknown Product" };
+    };
+    let commission : Nat = amountInCents * 3 / 100;
+    let tx : PaymentTransaction = {
+      id = nextTransactionId;
+      buyerId = caller;
+      productId;
+      productTitle;
+      amountInCents;
+      commissionInCents = commission;
+      status = "success";
+      sessionId;
+      createdAt = Time.now();
+    };
+    paymentTransactions.add(nextTransactionId, tx);
+    nextTransactionId += 1;
+    tx.id;
+  };
+
+  public query ({ caller }) func getPaymentTransactions() : async [PaymentTransaction] {
+    if (not AccessControl.isAdmin(accessControlState, caller)) {
+      Runtime.trap("Unauthorized: Only admins can view payment transactions");
+    };
+    paymentTransactions.values().toArray();
+  };
 
   public func trackVisit() : async () {
     visitCount += 1;
@@ -63,6 +109,8 @@ actor {
     registeredUsers : Nat;
     activeListings : Nat;
     authorizedUserCount : Nat;
+    totalCommission : Nat;
+    totalTransactions : Nat;
   };
 
   public query ({ caller }) func getAnalytics() : async Analytics {
@@ -70,6 +118,10 @@ actor {
       Runtime.trap("Unauthorized: Only admins can view analytics");
     };
     let active = products.values().toArray().filter(func(p) { not p.isSold });
+    var commission : Nat = 0;
+    for (tx in paymentTransactions.values()) {
+      commission += tx.commissionInCents;
+    };
     {
       visitCount;
       totalSalesCount;
@@ -77,6 +129,8 @@ actor {
       registeredUsers = userProfiles.size();
       activeListings = active.size();
       authorizedUserCount = authorizedUsers.size();
+      totalCommission = commission;
+      totalTransactions = paymentTransactions.size();
     };
   };
 
@@ -85,7 +139,6 @@ actor {
       Runtime.trap("Unauthorized: Only admins can add authorized users");
     };
     authorizedUsers.add(user);
-    // Also grant #user role so they can perform actions
     AccessControl.assignRole(accessControlState, caller, user, #user);
   };
 
@@ -94,7 +147,6 @@ actor {
       Runtime.trap("Unauthorized: Only admins can remove authorized users");
     };
     authorizedUsers.remove(user);
-    // Demote back to guest
     AccessControl.assignRole(accessControlState, caller, user, #guest);
   };
 
@@ -340,7 +392,6 @@ actor {
           Runtime.trap("Unauthorized: Only the seller or admin can mark this product as sold");
         };
         products.add(id, { product with isSold = true });
-        // Track analytics
         totalSalesCount += 1;
         totalRevenue += product.price;
       };

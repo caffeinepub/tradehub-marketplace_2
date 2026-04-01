@@ -100,9 +100,11 @@ export default function ProductDetailPage({
   // Stable refs so the mount-only effect doesn't need them in deps
   const actorRef = useRef(actor);
   const productIdRef = useRef(product.id);
+  const productPriceRef = useRef(product.price);
   const verifyPaymentRef = useRef(verifyPayment.mutate);
   actorRef.current = actor;
   productIdRef.current = product.id;
+  productPriceRef.current = product.price;
   verifyPaymentRef.current = verifyPayment.mutate;
 
   // Check URL params on mount for Stripe redirect
@@ -126,6 +128,12 @@ export default function ProductDetailPage({
                 (actorRef.current as any)
                   .markProductAsSold(productIdRef.current)
                   .catch(() => {});
+                const amountInCents = BigInt(
+                  Math.round(Number(productPriceRef.current) * 1.03),
+                );
+                (actorRef.current as any)
+                  .recordPayment(productIdRef.current, sessionId, amountInCents)
+                  .catch(() => {});
               }
             } else {
               toast.error("Payment could not be verified. Contact support.");
@@ -140,6 +148,12 @@ export default function ProductDetailPage({
         if (actorRef.current) {
           (actorRef.current as any)
             .markProductAsSold(productIdRef.current)
+            .catch(() => {});
+          const amountInCents = BigInt(
+            Math.round(Number(productPriceRef.current) * 1.03),
+          );
+          (actorRef.current as any)
+            .recordPayment(productIdRef.current, "", amountInCents)
             .catch(() => {});
         }
       }

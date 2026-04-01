@@ -4,6 +4,14 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Principal } from "@icp-sdk/core/principal";
 import {
   BarChart3,
@@ -12,10 +20,12 @@ import {
   ExternalLink,
   Eye,
   Package,
+  Receipt,
   RefreshCw,
   ShieldCheck,
   ShoppingBag,
   Star,
+  TrendingUp,
   UserCheck,
   UserCircle2,
   UserPlus,
@@ -24,11 +34,11 @@ import {
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { UserRole } from "../backend.d";
-import type { Analytics } from "../backend.d";
+import type { Analytics, PaymentTransaction } from "../backend.d";
 import { useActor } from "../hooks/useActor";
 import { useAllProductReviews, useAllProducts } from "../hooks/useQueries";
 
-const SKELETON_KEYS = ["sk1", "sk2", "sk3", "sk4", "sk5", "sk6"];
+const SKELETON_KEYS = ["sk1", "sk2", "sk3", "sk4", "sk5", "sk6", "sk7", "sk8"];
 
 interface AdminPanelProps {
   onBack: () => void;
@@ -53,6 +63,10 @@ export default function AdminPanel({
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
 
+  // Payment transactions state
+  const [transactions, setTransactions] = useState<PaymentTransaction[]>([]);
+  const [transactionsLoading, setTransactionsLoading] = useState(false);
+
   // Authorized users state
   const [authorizedUsers, setAuthorizedUsers] = useState<Principal[]>([]);
   const [authUsersLoading, setAuthUsersLoading] = useState(false);
@@ -76,6 +90,19 @@ export default function AdminPanel({
     }
   }, [actor]);
 
+  const fetchTransactions = useCallback(async () => {
+    if (!actor) return;
+    setTransactionsLoading(true);
+    try {
+      const data = await (actor as any).getPaymentTransactions();
+      setTransactions(data);
+    } catch (_e) {
+      toast.error("Failed to load payment transactions");
+    } finally {
+      setTransactionsLoading(false);
+    }
+  }, [actor]);
+
   const fetchAuthorizedUsers = useCallback(async () => {
     if (!actor) return;
     setAuthUsersLoading(true);
@@ -92,8 +119,9 @@ export default function AdminPanel({
   useEffect(() => {
     if (!actor) return;
     fetchAnalytics();
+    fetchTransactions();
     fetchAuthorizedUsers();
-  }, [actor, fetchAnalytics, fetchAuthorizedUsers]);
+  }, [actor, fetchAnalytics, fetchTransactions, fetchAuthorizedUsers]);
 
   const handleAddAuthorizedUser = async () => {
     if (!actor || !addUserInput.trim()) return;
@@ -232,6 +260,20 @@ export default function AdminPanel({
           bg: "bg-green-50",
         },
         {
+          label: "Total Commission",
+          value: `$${(Number(analytics.totalCommission) / 100).toFixed(2)}`,
+          icon: TrendingUp,
+          color: "text-teal-600",
+          bg: "bg-teal-50",
+        },
+        {
+          label: "Total Transactions",
+          value: Number(analytics.totalTransactions).toLocaleString(),
+          icon: Receipt,
+          color: "text-purple-500",
+          bg: "bg-purple-50",
+        },
+        {
           label: "Registered Users",
           value: Number(analytics.registeredUsers).toLocaleString(),
           icon: Users,
@@ -254,6 +296,16 @@ export default function AdminPanel({
         },
       ]
     : [];
+
+  // Derived payment stats
+  const totalRevenue = transactions.reduce(
+    (sum, t) => sum + Number(t.amountInCents),
+    0,
+  );
+  const totalCommission = transactions.reduce(
+    (sum, t) => sum + Number(t.commissionInCents),
+    0,
+  );
 
   return (
     <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -294,7 +346,7 @@ export default function AdminPanel({
         </div>
         <div className="p-5">
           {analyticsLoading && !analytics ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               {SKELETON_KEYS.map((k) => (
                 <Skeleton
                   key={k}
@@ -304,7 +356,7 @@ export default function AdminPanel({
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               {statCards.map((card) => (
                 <div
                   key={card.label}
@@ -324,6 +376,135 @@ export default function AdminPanel({
                 </div>
               ))}
             </div>
+          )}
+        </div>
+      </div>
+
+      {/* Payment Transactions */}
+      <div className="bg-white rounded-xl border border-border shadow-sm mb-6">
+        <div className="p-4 border-b border-border flex items-center gap-2">
+          <Receipt className="w-5 h-5 text-emerald-500" />
+          <h2 className="font-semibold text-foreground">
+            Payment Transactions
+          </h2>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={fetchTransactions}
+            disabled={transactionsLoading}
+            className="ml-auto text-muted-foreground hover:text-foreground"
+            data-ocid="admin.payments.button"
+          >
+            <RefreshCw
+              className={`w-4 h-4 mr-1 ${transactionsLoading ? "animate-spin" : ""}`}
+            />
+            Refresh
+          </Button>
+        </div>
+        <div className="p-5">
+          {/* Summary stat cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+            <div className="rounded-lg border border-border p-4 flex flex-col gap-2">
+              <div className="w-8 h-8 rounded-md bg-green-50 flex items-center justify-center">
+                <DollarSign className="w-4 h-4 text-green-600" />
+              </div>
+              <div className="text-2xl font-bold text-foreground leading-none">
+                ${(totalRevenue / 100).toFixed(2)}
+              </div>
+              <div className="text-xs text-muted-foreground">Total Revenue</div>
+            </div>
+            <div className="rounded-lg border border-border p-4 flex flex-col gap-2">
+              <div className="w-8 h-8 rounded-md bg-teal-50 flex items-center justify-center">
+                <TrendingUp className="w-4 h-4 text-teal-600" />
+              </div>
+              <div className="text-2xl font-bold text-foreground leading-none">
+                ${(totalCommission / 100).toFixed(2)}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                Total Commission (3%)
+              </div>
+            </div>
+            <div className="rounded-lg border border-border p-4 flex flex-col gap-2">
+              <div className="w-8 h-8 rounded-md bg-purple-50 flex items-center justify-center">
+                <Receipt className="w-4 h-4 text-purple-500" />
+              </div>
+              <div className="text-2xl font-bold text-foreground leading-none">
+                {transactions.length.toLocaleString()}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                Total Transactions
+              </div>
+            </div>
+          </div>
+
+          {/* Transactions table */}
+          {transactionsLoading && transactions.length === 0 ? (
+            <div className="space-y-2" data-ocid="admin.payments.loading_state">
+              {["t1", "t2", "t3"].map((k) => (
+                <Skeleton key={k} className="h-12 rounded-lg" />
+              ))}
+            </div>
+          ) : transactions.length === 0 ? (
+            <div
+              className="py-12 text-center text-muted-foreground text-sm"
+              data-ocid="admin.payments.empty_state"
+            >
+              <Receipt className="w-10 h-10 mx-auto mb-3 opacity-30" />
+              No payments yet
+            </div>
+          ) : (
+            <ScrollArea className="max-h-[480px] rounded-lg border border-border">
+              <Table data-ocid="admin.payments.table">
+                <TableHeader>
+                  <TableRow className="bg-muted/40">
+                    <TableHead className="w-12">#</TableHead>
+                    <TableHead>Product</TableHead>
+                    <TableHead>Buyer</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
+                    <TableHead className="text-right">Commission</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Date</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {transactions.map((tx, idx) => {
+                    const ms = tx.createdAt / 1_000_000n;
+                    const dateStr = new Date(Number(ms)).toLocaleDateString();
+                    return (
+                      <TableRow
+                        key={tx.id.toString()}
+                        className="hover:bg-muted/20 transition-colors"
+                        data-ocid={`admin.payments.row.${idx + 1}`}
+                      >
+                        <TableCell className="text-xs text-muted-foreground font-mono">
+                          {tx.id.toString()}
+                        </TableCell>
+                        <TableCell className="font-medium text-sm max-w-[160px] truncate">
+                          {tx.productTitle}
+                        </TableCell>
+                        <TableCell className="font-mono text-xs text-muted-foreground">
+                          {tx.buyerId.toString().slice(0, 8)}…
+                        </TableCell>
+                        <TableCell className="text-right font-semibold text-sm">
+                          ${(Number(tx.amountInCents) / 100).toFixed(2)}
+                        </TableCell>
+                        <TableCell className="text-right text-sm text-teal-600">
+                          ${(Number(tx.commissionInCents) / 100).toFixed(2)}
+                        </TableCell>
+                        <TableCell>
+                          <Badge className="bg-green-100 text-green-700 border-0 text-xs">
+                            {tx.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {dateStr}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </ScrollArea>
           )}
         </div>
       </div>
