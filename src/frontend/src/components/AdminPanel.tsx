@@ -2,22 +2,33 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Principal } from "@icp-sdk/core/principal";
 import {
+  BarChart3,
   CreditCard,
+  DollarSign,
   ExternalLink,
+  Eye,
+  Package,
+  RefreshCw,
   ShieldCheck,
+  ShoppingBag,
   Star,
+  UserCheck,
   UserCircle2,
   UserPlus,
+  Users,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { UserRole } from "../backend.d";
+import type { Analytics } from "../backend.d";
 import { useActor } from "../hooks/useActor";
-import type { Product } from "../hooks/useQueries";
 import { useAllProductReviews, useAllProducts } from "../hooks/useQueries";
+
+const SKELETON_KEYS = ["sk1", "sk2", "sk3", "sk4", "sk5", "sk6"];
 
 interface AdminPanelProps {
   onBack: () => void;
@@ -38,8 +49,82 @@ export default function AdminPanel({
   const [stripeKey, setStripeKey] = useState("");
   const [savingStripe, setSavingStripe] = useState(false);
 
+  // Analytics state
+  const [analytics, setAnalytics] = useState<Analytics | null>(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+
+  // Authorized users state
+  const [authorizedUsers, setAuthorizedUsers] = useState<Principal[]>([]);
+  const [authUsersLoading, setAuthUsersLoading] = useState(false);
+  const [addUserInput, setAddUserInput] = useState("");
+  const [addingUser, setAddingUser] = useState(false);
+  const [removingUser, setRemovingUser] = useState<string | null>(null);
+
   const productIds = useMemo(() => allProducts.map((p) => p.id), [allProducts]);
   const { data: allReviewsMap = new Map() } = useAllProductReviews(productIds);
+
+  const fetchAnalytics = useCallback(async () => {
+    if (!actor) return;
+    setAnalyticsLoading(true);
+    try {
+      const data = await (actor as any).getAnalytics();
+      setAnalytics(data);
+    } catch (_e) {
+      toast.error("Failed to load analytics");
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  }, [actor]);
+
+  const fetchAuthorizedUsers = useCallback(async () => {
+    if (!actor) return;
+    setAuthUsersLoading(true);
+    try {
+      const users = await (actor as any).getAuthorizedUsers();
+      setAuthorizedUsers(users);
+    } catch (_e) {
+      toast.error("Failed to load authorized users");
+    } finally {
+      setAuthUsersLoading(false);
+    }
+  }, [actor]);
+
+  useEffect(() => {
+    if (!actor) return;
+    fetchAnalytics();
+    fetchAuthorizedUsers();
+  }, [actor, fetchAnalytics, fetchAuthorizedUsers]);
+
+  const handleAddAuthorizedUser = async () => {
+    if (!actor || !addUserInput.trim()) return;
+    setAddingUser(true);
+    try {
+      const principal = Principal.fromText(addUserInput.trim());
+      await (actor as any).addAuthorizedUser(principal);
+      toast.success("User authorized successfully");
+      setAddUserInput("");
+      await fetchAuthorizedUsers();
+    } catch (_e) {
+      toast.error("Failed to add user. Check that the principal ID is valid.");
+    } finally {
+      setAddingUser(false);
+    }
+  };
+
+  const handleRemoveAuthorizedUser = async (principal: Principal) => {
+    if (!actor) return;
+    const key = principal.toString();
+    setRemovingUser(key);
+    try {
+      await (actor as any).removeAuthorizedUser(principal);
+      toast.success("User removed from authorized list");
+      await fetchAuthorizedUsers();
+    } catch (_e) {
+      toast.error("Failed to remove user");
+    } finally {
+      setRemovingUser(null);
+    }
+  };
 
   // Build unique sellers with stats
   const sellers = useMemo(() => {
@@ -123,6 +208,53 @@ export default function AdminPanel({
     }
   };
 
+  const statCards = analytics
+    ? [
+        {
+          label: "Site Visits",
+          value: Number(analytics.visitCount).toLocaleString(),
+          icon: Eye,
+          color: "text-blue-500",
+          bg: "bg-blue-50",
+        },
+        {
+          label: "Total Sales",
+          value: Number(analytics.totalSalesCount).toLocaleString(),
+          icon: ShoppingBag,
+          color: "text-emerald-500",
+          bg: "bg-emerald-50",
+        },
+        {
+          label: "Total Revenue",
+          value: `$${(Number(analytics.totalRevenue) / 100).toFixed(2)}`,
+          icon: DollarSign,
+          color: "text-green-600",
+          bg: "bg-green-50",
+        },
+        {
+          label: "Registered Users",
+          value: Number(analytics.registeredUsers).toLocaleString(),
+          icon: Users,
+          color: "text-violet-500",
+          bg: "bg-violet-50",
+        },
+        {
+          label: "Active Listings",
+          value: Number(analytics.activeListings).toLocaleString(),
+          icon: Package,
+          color: "text-orange-500",
+          bg: "bg-orange-50",
+        },
+        {
+          label: "Authorized Users",
+          value: Number(analytics.authorizedUserCount).toLocaleString(),
+          icon: UserCheck,
+          color: "text-indigo-500",
+          bg: "bg-indigo-50",
+        },
+      ]
+    : [];
+
   return (
     <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
       <div className="flex items-center gap-3 mb-6">
@@ -139,6 +271,149 @@ export default function AdminPanel({
         <Badge variant="secondary" className="bg-blue-100 text-blue-700">
           Admin Controls
         </Badge>
+      </div>
+
+      {/* Analytics Dashboard */}
+      <div className="bg-white rounded-xl border border-border shadow-sm mb-6">
+        <div className="p-4 border-b border-border flex items-center gap-2">
+          <BarChart3 className="w-5 h-5 text-blue-500" />
+          <h2 className="font-semibold text-foreground">Analytics Dashboard</h2>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={fetchAnalytics}
+            disabled={analyticsLoading}
+            className="ml-auto text-muted-foreground hover:text-foreground"
+            data-ocid="admin.analytics.button"
+          >
+            <RefreshCw
+              className={`w-4 h-4 mr-1 ${analyticsLoading ? "animate-spin" : ""}`}
+            />
+            Refresh
+          </Button>
+        </div>
+        <div className="p-5">
+          {analyticsLoading && !analytics ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              {SKELETON_KEYS.map((k) => (
+                <Skeleton
+                  key={k}
+                  className="h-20 rounded-lg"
+                  data-ocid="admin.analytics.loading_state"
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              {statCards.map((card) => (
+                <div
+                  key={card.label}
+                  className="rounded-lg border border-border p-4 flex flex-col gap-2"
+                >
+                  <div
+                    className={`w-8 h-8 rounded-md ${card.bg} flex items-center justify-center`}
+                  >
+                    <card.icon className={`w-4 h-4 ${card.color}`} />
+                  </div>
+                  <div className="text-2xl font-bold text-foreground leading-none">
+                    {card.value}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {card.label}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Authorized Users Management */}
+      <div className="bg-white rounded-xl border border-border shadow-sm mb-6">
+        <div className="p-4 border-b border-border flex items-center gap-2">
+          <UserCheck className="w-5 h-5 text-indigo-500" />
+          <h2 className="font-semibold text-foreground">Authorized Users</h2>
+          <Badge
+            variant="secondary"
+            className="bg-indigo-100 text-indigo-700 ml-auto text-xs"
+          >
+            {authorizedUsers.length} users
+          </Badge>
+        </div>
+        <div className="p-5 space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Authorized users can upload and sell items. Add their principal IDs
+            below.
+          </p>
+
+          {/* Add user input */}
+          <div className="flex gap-3">
+            <Input
+              placeholder="Principal ID (e.g. aaaaa-aa)"
+              value={addUserInput}
+              onChange={(e) => setAddUserInput(e.target.value)}
+              className="font-mono text-sm"
+              data-ocid="admin.authorized.input"
+            />
+            <Button
+              onClick={handleAddAuthorizedUser}
+              disabled={!addUserInput.trim() || addingUser}
+              className="shrink-0 bg-indigo-600 hover:bg-indigo-700 text-white border-0"
+              data-ocid="admin.authorized.primary_button"
+            >
+              {addingUser ? "Adding…" : "Add User"}
+            </Button>
+          </div>
+
+          {/* List */}
+          {authUsersLoading && authorizedUsers.length === 0 ? (
+            <div
+              className="space-y-2"
+              data-ocid="admin.authorized.loading_state"
+            >
+              <Skeleton className="h-12 rounded-lg" />
+              <Skeleton className="h-12 rounded-lg" />
+            </div>
+          ) : authorizedUsers.length === 0 ? (
+            <div
+              className="py-8 text-center text-muted-foreground text-sm"
+              data-ocid="admin.authorized.empty_state"
+            >
+              No authorized users yet.
+            </div>
+          ) : (
+            <div className="divide-y divide-border rounded-lg border border-border overflow-hidden">
+              {authorizedUsers.map((principal, idx) => {
+                const key = principal.toString();
+                const isRemoving = removingUser === key;
+                return (
+                  <div
+                    key={key}
+                    className="flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors"
+                    data-ocid={`admin.authorized.item.${idx + 1}`}
+                  >
+                    <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
+                      <UserCheck className="w-4 h-4 text-indigo-500" />
+                    </div>
+                    <span className="flex-1 text-sm font-mono text-foreground truncate">
+                      {key.length > 20 ? `${key.slice(0, 20)}…` : key}
+                    </span>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleRemoveAuthorizedUser(principal)}
+                      disabled={isRemoving}
+                      className="shrink-0 text-xs"
+                      data-ocid={`admin.authorized.delete_button.${idx + 1}`}
+                    >
+                      {isRemoving ? "Removing…" : "Remove"}
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Stripe Configuration Section */}

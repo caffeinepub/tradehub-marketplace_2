@@ -40,6 +40,14 @@ export interface Review {
     comment: string;
     timestamp: Time;
 }
+export interface Analytics {
+    visitCount: bigint;
+    totalSalesCount: bigint;
+    totalRevenue: bigint;
+    registeredUsers: bigint;
+    activeListings: bigint;
+    authorizedUserCount: bigint;
+}
 export enum ProductCategory {
     autos = "autos",
     home = "home",
@@ -80,4 +88,9 @@ export interface backendInterface {
     setStripeSecretKey(key: string): Promise<void>;
     createStripeCheckoutSession(productId: bigint, successUrl: string, cancelUrl: string): Promise<string>;
     verifyStripePayment(sessionId: string): Promise<boolean>;
+    trackVisit(): Promise<void>;
+    getAnalytics(): Promise<Analytics>;
+    addAuthorizedUser(user: Principal): Promise<void>;
+    removeAuthorizedUser(user: Principal): Promise<void>;
+    getAuthorizedUsers(): Promise<Array<Principal>>;
 }

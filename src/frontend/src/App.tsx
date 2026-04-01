@@ -164,6 +164,18 @@ function AppContent() {
   // Cart state
   const [cartItems, setCartItems] = useState<Product[]>([]);
 
+  // Track visit once when actor becomes available
+  const visitTrackedRef = useRef(false);
+  useEffect(() => {
+    if (!actor || visitTrackedRef.current) return;
+    visitTrackedRef.current = true;
+    try {
+      (actor as any).trackVisit();
+    } catch (_e) {
+      // silently ignore
+    }
+  }, [actor]);
+
   const addToCart = useCallback((product: Product) => {
     setCartItems((prev) => {
       const alreadyIn = prev.some((p) => p.id === product.id);

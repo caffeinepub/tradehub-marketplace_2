@@ -19,9 +19,91 @@ actor {
   include MixinAuthorization(accessControlState);
   include MixinStorage();
 
+  // Bootstrap admin principal IDs (dev + live)
+  let BOOTSTRAP_ADMINS : [Text] = [
+    "aic5z-horrw-4jwce-ms65y-wcupc-tori5-ojc35-pyfit-3cwqh-cvcjo-zae",
+  ];
+
+  // Initialize bootstrap admins on first run
+  stable var bootstrapDone : Bool = false;
+
+  private func ensureBootstrapAdmins() {
+    if (not bootstrapDone) {
+      for (pid in BOOTSTRAP_ADMINS.vals()) {
+        let p = Principal.fromText(pid);
+        accessControlState.userRoles.add(p, #admin); accessControlState.adminAssigned := true;
+      };
+      bootstrapDone := true;
+    };
+  };
+
+  // Run bootstrap on init
+  do { ensureBootstrapAdmins() };
+
   // Stripe configuration
   stable var stripeSecretKey : Text = "";
   let stripeAllowedCountries : [Text] = ["US", "GB", "CA", "AU", "DE", "FR"];
+
+  // Analytics
+  stable var visitCount : Nat = 0;
+  stable var totalSalesCount : Nat = 0;
+  stable var totalRevenue : Nat = 0;
+
+  // Authorized users list (tracked separately from role system)
+  let authorizedUsers = Set.empty<Principal>();
+
+  public func trackVisit() : async () {
+    visitCount += 1;
+  };
+
+  public type Analytics = {
+    visitCount : Nat;
+    totalSalesCount : Nat;
+    totalRevenue : Nat;
+    registeredUsers : Nat;
+    activeListings : Nat;
+    authorizedUserCount : Nat;
+  };
+
+  public query ({ caller }) func getAnalytics() : async Analytics {
+    if (not AccessControl.isAdmin(accessControlState, caller)) {
+      Runtime.trap("Unauthorized: Only admins can view analytics");
+    };
+    let active = products.values().toArray().filter(func(p) { not p.isSold });
+    {
+      visitCount;
+      totalSalesCount;
+      totalRevenue;
+      registeredUsers = userProfiles.size();
+      activeListings = active.size();
+      authorizedUserCount = authorizedUsers.size();
+    };
+  };
+
+  public shared ({ caller }) func addAuthorizedUser(user : Principal) : async () {
+    if (not AccessControl.isAdmin(accessControlState, caller)) {
+      Runtime.trap("Unauthorized: Only admins can add authorized users");
+    };
+    authorizedUsers.add(user);
+    // Also grant #user role so they can perform actions
+    AccessControl.assignRole(accessControlState, caller, user, #user);
+  };
+
+  public shared ({ caller }) func removeAuthorizedUser(user : Principal) : async () {
+    if (not AccessControl.isAdmin(accessControlState, caller)) {
+      Runtime.trap("Unauthorized: Only admins can remove authorized users");
+    };
+    authorizedUsers.remove(user);
+    // Demote back to guest
+    AccessControl.assignRole(accessControlState, caller, user, #guest);
+  };
+
+  public query ({ caller }) func getAuthorizedUsers() : async [Principal] {
+    if (not AccessControl.isAdmin(accessControlState, caller)) {
+      Runtime.trap("Unauthorized: Only admins can list authorized users");
+    };
+    authorizedUsers.toArray();
+  };
 
   public shared ({ caller }) func setStripeSecretKey(key : Text) : async () {
     if (not AccessControl.isAdmin(accessControlState, caller)) {
@@ -48,7 +130,6 @@ actor {
     if (product.isSold) {
       Runtime.trap("Product is already sold");
     };
-    // price is stored in cents already; add 3% platform fee
     let priceWithFee : Nat = product.price * 103 / 100;
     let item : Stripe.ShoppingItem = {
       currency = "usd";
@@ -62,7 +143,6 @@ actor {
       allowedCountries = stripeAllowedCountries;
     };
     let url = await Stripe.createCheckoutSession(config, caller, [item], successUrl, cancelUrl, transformResponse);
-    // extract the checkout URL from the JSON response
     let pattern = "\"url\":\"";
     if (url.contains(#text pattern)) {
       let parts = url.split(#text pattern);
@@ -98,11 +178,7 @@ actor {
     };
     let status = await Stripe.getSessionStatus(config, sessionId, transformResponse);
     switch (status) {
-      case (#completed({ response; userPrincipal })) {
-        // try to extract productId from client_reference_id or success URL
-        // For simplicity, mark nothing here - frontend handles markProductAsSold
-        true;
-      };
+      case (#completed({ response; userPrincipal })) { true };
       case (#failed(_)) { false };
     };
   };
@@ -193,13 +269,12 @@ actor {
     };
   };
 
-  // Marketplace
   let products = Map.empty<Nat, Product>();
   var nextProductId = 1;
 
   public shared ({ caller }) func createProduct(title : Text, description : Text, price : Nat, category : ProductCategory, imageUrl : Text, sellerId : Text) : async Nat {
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Runtime.trap("Unauthorized: Only users can create products");
+      Runtime.trap("Unauthorized: Only authorized users can create products");
     };
     let product : Product = {
       id = nextProductId;
@@ -265,6 +340,9 @@ actor {
           Runtime.trap("Unauthorized: Only the seller or admin can mark this product as sold");
         };
         products.add(id, { product with isSold = true });
+        // Track analytics
+        totalSalesCount += 1;
+        totalRevenue += product.price;
       };
     };
   };
@@ -331,7 +409,7 @@ actor {
     };
   };
 
-  // Verified Sellers (manual admin override)
+  // Verified Sellers
   let manuallyVerifiedSellers = Set.empty<Principal>();
 
   public shared ({ caller }) func setSellerVerified(seller : Principal, verified : Bool) : async () {
@@ -369,12 +447,10 @@ actor {
       text;
       timestamp = Time.now();
     };
-
     let existingMessages = switch (marketplaceMessages.get(productId)) {
       case (null) { List.empty<MarketPlaceMessage>() };
       case (?messages) { messages };
     };
-
     existingMessages.add(message);
     marketplaceMessages.add(productId, existingMessages);
   };

@@ -1,28 +1,33 @@
 # TradeHub Marketplace
 
 ## Current State
-Full-stack marketplace app with Motoko backend + React frontend. Backend implements products, reviews, chat, auth, Stripe, and user profiles. Frontend renders header, hero, product grid, and multiple panels/modals. Build passes but user reports things "not showing" — logo, sign-in, and content are invisible or broken at runtime.
+Backend has authorization mixin with role-based access (#guest, #user, #admin). Admin panel has Stripe config, admin promotion, and verified seller management. No analytics tracking. No dedicated authorized users management UI. No bootstrap admin.
 
 ## Requested Changes (Diff)
 
 ### Add
-- ErrorBoundary wrapping at the root level in main.tsx
-- Defensive error handling for `getMyProducts` (unauthenticated users hitting protected methods)
-- Explicit fallback rendering for when actor is still loading
+- Bootstrap admin: hardcode principal `aic5z-horrw-4jwce-ms65y-wcupc-tori5-ojc35-pyfit-3cwqh-cvcjo-zae` as permanent admin on first initialization
+- Backend: `trackVisit()` public call to increment site visit counter
+- Backend: `getAnalytics()` admin-only — returns visitCount, totalSales count, totalRevenue, registeredUsers count, activeListings count
+- Backend: `addAuthorizedUser(principal)` admin-only — grants #user role and adds to tracked list
+- Backend: `removeAuthorizedUser(principal)` admin-only — demotes to #guest role
+- Backend: `getAuthorizedUsers()` admin-only — returns list of authorized principals
+- Backend: `trackSale(price)` internal — called from markProductAsSold to track revenue
+- AdminPanel: Analytics dashboard section (visit count, total sales, revenue, users, active listings)
+- AdminPanel: Authorized Users management section (list current users, add by principal ID, remove)
+- First-login-becomes-admin logic: if no admins exist yet, first sign-in auto-promotes to admin
 
 ### Modify
-- main.tsx: wrap App with ErrorBoundary
-- useMyMessageCount: add .catch() to prevent unhandled rejection crashing the query
-- Header: ensure logo and Sign In / Sign Up buttons render unconditionally and are never hidden by CSS
-- App.tsx: fix any race conditions between actor loading and data fetching that cause blank states
-- Ensure backend.d.ts types align with useQueries.ts for getCallerUserProfile returning optional
+- `markProductAsSold` — also increment sales counter and revenue
+- `createProduct` — only authorized users (#user or #admin) can create; guests cannot
+- AdminPanel — add two new sections: Analytics and Authorized Users
+- App.tsx — call `trackVisit()` on load
 
 ### Remove
-- Nothing to remove
+- Nothing removed
 
 ## Implementation Plan
-1. Wrap App in ErrorBoundary in main.tsx
-2. Add catch blocks to useMyMessageCount query
-3. Audit Header.tsx to ensure logo and auth buttons are always visible at all viewport sizes
-4. Audit App.tsx to ensure it handles isFetching state gracefully and never shows blank page
-5. Validate and build
+1. Update `main.mo`: add stable analytics vars, bootstrap admin init, analytics/authorized-user methods
+2. Update AdminPanel.tsx: add Analytics dashboard, Authorized Users management sections
+3. Update App.tsx: call `trackVisit()` on app load
+4. Update backend.d.ts to include new function signatures
