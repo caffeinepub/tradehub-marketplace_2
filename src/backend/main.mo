@@ -19,24 +19,25 @@ actor {
   include MixinAuthorization(accessControlState);
   include MixinStorage();
 
-  // Bootstrap admin principal IDs (dev + live)
+  // Kept for stable variable compatibility with previous deployments
+  stable var bootstrapDone : Bool = false;
+
+  // Bootstrap admin — always enforced on every upgrade, ignoring bootstrapDone
   let BOOTSTRAP_ADMINS : [Text] = [
     "aic5z-horrw-4jwce-ms65y-wcupc-tori5-ojc35-pyfit-3cwqh-cvcjo-zae",
   ];
 
-  stable var bootstrapDone : Bool = false;
-
-  private func ensureBootstrapAdmins() {
-    if (not bootstrapDone) {
-      for (pid in BOOTSTRAP_ADMINS.vals()) {
-        let p = Principal.fromText(pid);
-        accessControlState.userRoles.add(p, #admin); accessControlState.adminAssigned := true;
-      };
-      bootstrapDone := true;
+  private func enforceBootstrapAdmins() {
+    for (pid in BOOTSTRAP_ADMINS.vals()) {
+      let p = Principal.fromText(pid);
+      accessControlState.userRoles.add(p, #admin);
+      accessControlState.adminAssigned := true;
     };
+    // Keep bootstrapDone = true for compatibility, but we no longer gate on it
+    bootstrapDone := true;
   };
 
-  do { ensureBootstrapAdmins() };
+  do { enforceBootstrapAdmins() };
 
   // Stripe configuration
   stable var stripeSecretKey : Text = "";
@@ -139,7 +140,7 @@ actor {
       Runtime.trap("Unauthorized: Only admins can add authorized users");
     };
     authorizedUsers.add(user);
-    AccessControl.assignRole(accessControlState, caller, user, #user);
+    accessControlState.userRoles.add(user, #user);
   };
 
   public shared ({ caller }) func removeAuthorizedUser(user : Principal) : async () {
@@ -147,7 +148,7 @@ actor {
       Runtime.trap("Unauthorized: Only admins can remove authorized users");
     };
     authorizedUsers.remove(user);
-    AccessControl.assignRole(accessControlState, caller, user, #guest);
+    accessControlState.userRoles.add(user, #guest);
   };
 
   public query ({ caller }) func getAuthorizedUsers() : async [Principal] {
@@ -243,23 +244,14 @@ actor {
   let userProfiles = Map.empty<Principal, UserProfile>();
 
   public query ({ caller }) func getCallerUserProfile() : async ?UserProfile {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Runtime.trap("Unauthorized: Only users can view profiles");
-    };
     userProfiles.get(caller);
   };
 
   public query ({ caller }) func getUserProfile(user : Principal) : async ?UserProfile {
-    if (caller != user and not AccessControl.isAdmin(accessControlState, caller)) {
-      Runtime.trap("Unauthorized: Can only view your own profile");
-    };
     userProfiles.get(user);
   };
 
   public shared ({ caller }) func saveCallerUserProfile(profile : UserProfile) : async () {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Runtime.trap("Unauthorized: Only users can save profiles");
-    };
     userProfiles.add(caller, profile);
   };
 
@@ -325,7 +317,7 @@ actor {
   var nextProductId = 1;
 
   public shared ({ caller }) func createProduct(title : Text, description : Text, price : Nat, category : ProductCategory, imageUrl : Text, sellerId : Text) : async Nat {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+    if (not AccessControl.isAdmin(accessControlState, caller) and not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Runtime.trap("Unauthorized: Only authorized users can create products");
     };
     let product : Product = {
@@ -345,9 +337,6 @@ actor {
   };
 
   public shared ({ caller }) func updateProduct(id : Nat, title : Text, description : Text, price : Nat, category : ProductCategory, imageUrl : Text) : async () {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Runtime.trap("Unauthorized: Only users can update products");
-    };
     switch (products.get(id)) {
       case (null) { Runtime.trap("Product not found") };
       case (?product) {
@@ -375,16 +364,10 @@ actor {
   };
 
   public query ({ caller }) func getMyProducts() : async [Product] {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Runtime.trap("Unauthorized: Only users can view their products");
-    };
     products.values().toArray().filter(func(p) { p.seller == caller });
   };
 
   public shared ({ caller }) func markProductAsSold(id : Nat) : async () {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Runtime.trap("Unauthorized: Only users can mark products as sold");
-    };
     switch (products.get(id)) {
       case (null) { Runtime.trap("Product not found") };
       case (?product) {
@@ -399,9 +382,6 @@ actor {
   };
 
   public shared ({ caller }) func deleteProduct(id : Nat) : async () {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Runtime.trap("Unauthorized: Only users can delete products");
-    };
     switch (products.get(id)) {
       case (null) { Runtime.trap("Product not found") };
       case (?product) {
@@ -425,9 +405,6 @@ actor {
   let reviews = Map.empty<Nat, List.List<Review>>();
 
   public shared ({ caller }) func addReview(productId : Nat, rating : Nat, comment : Text) : async () {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Runtime.trap("Unauthorized: Only users can add reviews");
-    };
     if (rating < 1 or rating > 5) {
       Runtime.trap("Rating must be between 1 and 5");
     };
@@ -489,9 +466,6 @@ actor {
   let marketplaceMessages = Map.empty<Nat, List.List<MarketPlaceMessage>>();
 
   public shared ({ caller }) func sendMarketPlaceMessage(productId : Nat, sender : Text, text : Text) : async () {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Runtime.trap("Unauthorized: Only users can send messages");
-    };
     let message : MarketPlaceMessage = {
       productId;
       sender;
@@ -507,9 +481,6 @@ actor {
   };
 
   public query ({ caller }) func getMarketPlaceMessagesByProduct(productId : Nat) : async [MarketPlaceMessage] {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Runtime.trap("Unauthorized: Only users can view messages");
-    };
     switch (marketplaceMessages.get(productId)) {
       case (null) { [] };
       case (?messages) { messages.toArray() };
@@ -526,9 +497,6 @@ actor {
   let supportMessages = List.empty<SupportMessage>();
 
   public shared ({ caller }) func sendSupportMessage(sender : Text, text : Text) : async () {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Runtime.trap("Unauthorized: Only users can send support messages");
-    };
     let message : SupportMessage = {
       sender;
       text;
@@ -538,9 +506,6 @@ actor {
   };
 
   public query ({ caller }) func getSupportMessages() : async [SupportMessage] {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Runtime.trap("Unauthorized: Only users can view support messages");
-    };
     supportMessages.toArray();
   };
 

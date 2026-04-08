@@ -205,6 +205,8 @@ function AppContent() {
   const [infoModalType, setInfoModalType] = useState<string | null>(null);
 
   // Load admin status and manual verified list
+  // identity in deps is intentional: re-check admin status immediately after login
+  // biome-ignore lint/correctness/useExhaustiveDependencies: identity triggers re-check after login
   useEffect(() => {
     if (!actor || isFetching) return;
     (actor as any)
@@ -219,7 +221,7 @@ function AppContent() {
         setManuallyVerified(new Set(principals.map((p) => p.toString())));
       })
       .catch(() => {});
-  }, [actor, isFetching]);
+  }, [actor, isFetching, identity]);
 
   const sellerRatingsMap = useMemo(() => {
     const map = new Map<
@@ -282,8 +284,25 @@ function AppContent() {
     prevIdentityRef.current = identity;
 
     if (wasLoggedOut && isNowLoggedIn && actor) {
-      const principal = identity!.getPrincipal();
-      actor.assignCallerUserRole(principal, UserRole.user).catch(() => {});
+      // Check current role first; only self-register as user if not already admin
+      (actor as any)
+        .getCallerUserRole()
+        .then((role: string) => {
+          if (role !== "admin") {
+            actor
+              .assignCallerUserRole(identity!.getPrincipal(), UserRole.user)
+              .catch(() => {});
+          } else {
+            // Already admin — refresh admin status immediately
+            setIsAdmin(true);
+          }
+        })
+        .catch(() => {
+          // Fallback: try to register as user
+          actor
+            .assignCallerUserRole(identity!.getPrincipal(), UserRole.user)
+            .catch(() => {});
+        });
 
       // Check if this is a new user (no profile yet) or signup intent
       const signupIntent =
